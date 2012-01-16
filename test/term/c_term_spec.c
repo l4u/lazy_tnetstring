@@ -85,13 +85,14 @@ int main( int argc, char **argv)
 	int *failed_tests = (int*)malloc(sizeof(int) * test_count);
 	int last_failed_test = 0;
 
-	if( starting_test < test_count ) 
+	if( starting_test < test_count && starting_test >= 0 && test_count >= 0)  
 	{
-		printf("Testing: ");
+		printf("\nTesting: ");
 	}
 	else
 	{
 		printf("No tests selected, exiting.\n");
+		return 1;
 	}
 
 	// loop through all tests
@@ -131,6 +132,30 @@ int main( int argc, char **argv)
 	// cleanup
 	free(failed_tests);
 	return last_failed_test;
+}
+
+// helüer functions
+static int check_raw( LTNSTerm *term, const char* expected_raw, size_t expected_raw_length )
+{
+	return term &&
+		(term->raw_length == expected_raw_length) &&
+		(strncmp(term->raw_data, expected_raw, expected_raw_length));
+}
+
+static int check_payload( LTNSTerm *term, const char* expected_payload, size_t expected_length, LTNSType expected_type )
+{ 
+	char *payload = NULL;
+	size_t length = 0;
+	LTNSType type = LTNS_UNDEFINED;
+	int result = LTNSGetPayload( term, payload, &length, &type );
+	LTNSType seperate_type = LTNS_UNDEFINED;
+	result &= LTNSGetPayloadType( term, &seperate_type );
+	
+	return result && 
+		(length == expected_length) && 
+		(type == expected_type) &&
+		(seperate_type == expected_type) &&
+		(strcmp(payload, expected_payload) == 0);
 }
 
 // space for global variables
@@ -176,29 +201,6 @@ int test_new_invalid()
 	int result = LTNSCreateTerm( subject, NULL, 4711, LTNS_STRING);
 	!result && (result = LTNSCreateTerm( subject, "foo", 3, LTNS_UNDEFINED));
 	return !result;
-}
-
-static int check_raw( LTNSTerm *term, const char* expected_raw, size_t expected_raw_length )
-{
-	return term &&
-		(term->raw_length == expected_raw_length) &&
-		(strncmp(term->raw_data, expected_raw, expected_raw_length));
-}
-
-static int check_payload( LTNSTerm *term, const char* expected_payload, size_t expected_length, LTNSType expected_type )
-{ 
-	char *payload = NULL;
-	size_t length = 0;
-	LTNSType type = LTNS_UNDEFINED;
-	int result = LTNSGetPayload( term, payload, &length, &type );
-	LTNSType seperate_type = LTNS_UNDEFINED;
-	result &= LTNSGetPayloadType( term, &seperate_type );
-	
-	return result && 
-		(length == expected_length) && 
-		(type == expected_type) &&
-		(seperate_type == expected_type) &&
-		(strcmp(payload, expected_payload) == 0);
 }
 
 int test_value_int()
