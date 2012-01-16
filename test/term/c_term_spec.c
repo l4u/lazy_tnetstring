@@ -1,3 +1,7 @@
+//
+// Testing tnetstring library
+//
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,12 +19,17 @@ int test_new();
 int test_new_invalid();
 
 int test_value_int();
-int test_value_bool();
+int test_value_bool_true();
+int test_value_bool_false();
 int test_value_null(); 
 int test_value_list();
 int test_value_dictionary();
 
 int test_value_undefined();
+
+// c-tests only
+int test_value_null_bytes();
+int test_value_get_with_null_arguments();
 
 // use tests
 typedef int (*test_function)();
@@ -32,16 +41,20 @@ typedef struct {
 
 test_case tests[] = 
 {
-	{test_new, "#new"},
-	{test_new_invalid, "non-tnestring-data"},
+	/*  0 */ {test_new, "#new"},
+	/*  1 */ {test_new_invalid, "non-tnestring-data"},
 
-	{test_value_int,"integer value"},
-        {test_value_bool, "boolean value" },
-	{test_value_null, "null value" },
-        {test_value_list, "list value" },
-        {test_value_dictionary, "dictionary" },
+	/*  2 */ {test_value_int,"integer value"},
+        /*  3 */ {test_value_bool_true, "boolean value of true" },
+        /*  4 */ {test_value_bool_false, "boolean value of false" },
+	/*  5 */ {test_value_null, "null value" },
+        /*  6 */ {test_value_list, "list value" },
+        /*  7 */ {test_value_dictionary, "dictionary" },
 
-        {test_value_undefined, "type error" },
+        /*  8 */ {test_value_undefined, "type error" },
+
+	/*  9 */ {test_value_null_bytes, "value containing null bytes" },
+	/* 10 */ {test_value_get_with_null_arguments, "value containing null bytes" },
 };
 
 // main function starting the test suite
@@ -86,7 +99,9 @@ int main( int argc, char **argv)
 	{
 		setup_test();
 		test_case test = tests[test_id];
-		if( !test.function() )
+		
+		int result = test.function();
+		if( !result )
 		{
 			printf( "\e[31mF\e[m", test_id );
 			failed_tests[last_failed_test++] = test_id;
@@ -108,7 +123,7 @@ int main( int argc, char **argv)
 		for( int failed_test = 0; failed_test < last_failed_test; ++failed_test )
 		{
 			int id = failed_tests[failed_test];
-			printf("\t%d: %s\n", id, tests[id].description );
+			printf("\t%3d: %s\n", id, tests[id].description );
 		}
 	}
 	printf("\n");
@@ -124,92 +139,144 @@ LTNSTerm *subject;
 // setup all tests
 void setup_test()
 {
-	LTNSCreateTerm( &subject );
-	LTNSSetData( subject, "3:foo,", 6);
+	subject = (LTNSTerm*)calloc(1, sizeof(LTNSTerm) );
+	LTNSCreateTerm( subject, "3:foo,", 6, LTNS_STRING);
 }
 
 void cleanup_test()
 {
 	LTNSDestroyTerm( subject );
+	free(subject);
 }
-
 
 
 // declare tests
 int test_new()
 {
-	char *data;
-	size_t length = 0;
-	int result = LTNSGetData( subject, data, &length );
+	char *data = subject->raw_data;
+	size_t length = subject->raw_length;
 
-	if( !result || length != 6 || strcmp( data, "3:foo," ) != 0 )
+	// raw data check
+	if( !data || length != 6 || strcmp( data, "3:foo," ) != 0 )
 	{
 		return 0;
 	}
 
-	result = LTNSGetValueLength( subject, &length);
-	return result && length == 3;
+	// payload check
+	LTNSType type = LTNS_UNDEFINED;
+	int result = LTNSGetPayloadType( subject, &type );
+	result && (result = LTNSGetPayloadLength( subject, &length));
+	return result && (length == 3) && (type == LTNS_STRING);
 }
 
 int test_new_invalid()
 {
-	// negative test for invalid data
-	int result = LTNSSetData( subject, "12345",5 );
+	// negative test for invalid data (expected to fail)
+	LTNSDestroyTerm( subject );
+	int result = LTNSCreateTerm( subject, NULL, 4711, LTNS_STRING);
+	!result && (result = LTNSCreateTerm( subject, "foo", 3, LTNS_UNDEFINED));
+	return !result;
+}
 
-	char data[10];
+static int check_raw( LTNSTerm *term, const char* expected_raw, size_t expected_raw_length )
+{
+	return term &&
+		(term->raw_length == expected_raw_length) &&
+		(strncmp(term->raw_data, expected_raw, expected_raw_length));
+}
+
+static int check_payload( LTNSTerm *term, const char* expected_payload, size_t expected_length, LTNSType expected_type )
+{ 
+	char *payload = NULL;
 	size_t length = 0;
-	LTNSGetString(subject, data, &length);
-	return !result && strcmp(data, "12345") != 0 && length != 5;
+	LTNSType type = LTNS_UNDEFINED;
+	int result = LTNSGetPayload( term, payload, &length, &type );
+	LTNSType seperate_type = LTNS_UNDEFINED;
+	result &= LTNSGetPayloadType( term, &seperate_type );
+	
+	return result && 
+		(length == expected_length) && 
+		(type == expected_type) &&
+		(seperate_type == expected_type) &&
+		(strcmp(payload, expected_payload) == 0);
 }
 
 int test_value_int()
 {
-	int data = 4711;
-	LTNSSetInteger( subject, data );
-	data = 0;
-
-	int result = LTNSGetInteger( subject, &data );
-	return result && LTNSGetType( subject ) == LTNS_INTEGER && data == 4711;
+	int result = LTNSDestroyTerm( subject );
+	result && (result = LTNSCreateTerm( subject, "4711", 4, LTNS_INTEGER));
+	result && (result = check_raw( subject, "4:4711#", 7 ));
+	result && (result = check_payload( subject, "4711", 4, LTNS_INTEGER ));
+	return result;
 }
 
-int test_value_bool()
+int test_value_bool_true()
 {
-	int data = 1;
-	LTNSSetBoolean( subject, data );
-	data = 0;
+	int result = LTNSDestroyTerm( subject );
+	result && (result = LTNSCreateTerm( subject, "true", 4, LTNS_BOOLEAN));
+	result && (result = check_raw( subject, "4:true!", 7 ));
+	result && (result = check_payload( subject, "true", 4, LTNS_BOOLEAN ));
+	return result;
+}
 
-	int result = LTNSGetBoolean( subject, &data );
-	return result && LTNSGetType( subject ) == LTNS_BOOLEAN && data == 1;
+int test_value_bool_false()
+{
+	int result = LTNSDestroyTerm( subject );
+	result && (result = LTNSCreateTerm( subject, "false", 5, LTNS_BOOLEAN));
+	result && (result = check_raw( subject, "5:false!", 8 ));
+	result && (result = check_payload( subject, "false", 5, LTNS_BOOLEAN ));
+	return result;
 }
 
 int test_value_null()
 {
-	int result = LTNSSetNull( subject );
-	char* raw_string;
-	size_t length;
-	LTNSGetData( subject, raw_string, &length );
-	return result && LTNSGetType(subject ) == LTNS_NULL && strcmp( raw_string, "0:~");
+	int result = LTNSDestroyTerm( subject );
+	result && (result = LTNSCreateTerm( subject, "", 0, LTNS_NULL));
+	result && (result = check_raw( subject, "0:~", 3 ));
+	result && (result = check_payload( subject, "", 0, LTNS_NULL ));
+	return result;
 }
 
 int test_value_list()
 {
-	char *entries = "0:~2:23#3:foo,";
-	int result = LTNSSetList( subject, entries, strlen(entries) );
-	return result && LTNSGetType( subject ) == LTNS_LIST;
+	int result = LTNSDestroyTerm( subject );
+	result && (result = LTNSCreateTerm( subject, "5:Hello,5:World,", 16, LTNS_LIST));
+	result && (result = check_raw( subject, "16:5:Hello,5:World,]", 20 ));
+	result && (result = check_payload( subject, "5:Hello,5:World,", 16, LTNS_LIST ));
+	return result;
 }
 
 int test_value_dictionary()
 {
-	char *entries = "3:one,1:1#3:two,1:2#"; // maps one => 1 and two => 2
-	int result = LTNSSetDictionary( subject, entries, strlen(entries) );
-	return result && LTNSGetType(subject) == LTNS_DICTIONARY;
+	int result = LTNSDestroyTerm( subject );
+	result && (result = LTNSCreateTerm( subject, "3:key,5:value,", 14, LTNS_DICTIONARY));
+	result && (result = check_raw( subject, "13:3:key,5:value,]", 18 ));
+	result && (result = check_payload( subject, "3:key,5:value,", 14, LTNS_DICTIONARY));
+	return result;
 }
 
 int test_value_undefined()
 {
-	// should not work '/' is no type!
-	int result = LTNSSetData(subject, "3:foo/", 6);
-	return result == 0 && LTNSGetType(subject) == LTNS_UNDEFINED;
+	// negative check : it is expected to fail!
+	int result = LTNSDestroyTerm( subject );
+	result && (result = LTNSCreateTerm( subject, "3:foo/", 6, LTNS_STRING)); // correct type, incorect string
+	!result && (result = LTNSCreateTerm( subject, "3:foo,", 6, LTNS_UNDEFINED)); // correct string, but incorrect type
+	return !result;
 }
 
+int test_value_null_bytes()
+{
+	char *data = "\061\061\000\061\061"; // store a string containing NULL-Bytes
+	int result = LTNSDestroyTerm( subject );
+	result && (result = LTNSCreateTerm( subject, data, 5, LTNS_STRING ));
+	return result && check_payload( subject, "aa\000aa", 5, LTNS_STRING );
+}
+
+int test_value_get_with_null_arguments()
+{
+	// getter test with unset output parameters
+	char* payload = NULL;
+	int result = LTNSGetPayload( subject, payload, NULL, NULL );
+	return result && strcmp(payload, "foo");
+}
 
