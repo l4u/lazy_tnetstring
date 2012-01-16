@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "LTNSTerm.h"
 
-int LTNSCreateTerm( LTNSTerm *term, char *payload, size_t payload_length, LTNSType type )
+int LTNSCreateTerm( LTNSTerm **term, char *payload, size_t payload_length, LTNSType type )
 {
 	return 0;
 }

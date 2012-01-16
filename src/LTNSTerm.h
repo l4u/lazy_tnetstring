@@ -1,31 +1,36 @@
 #ifndef __LTNSTERM_H___
 #define __LTNSTERM_H___
 
+#include <stdlib.h>
+
+// independend of strinrepresentaion, this term uses a length
 typedef struct 
 {
-	size_t length;
-	char* tnetstring;
-	char* payload;
+	int raw_length;
+	char *raw_data;
 } LTNSTerm;
 
-typedef enum
+typedef enum 
 {
-	TYPE_STRING = ',',
-	TYPE_INTEGER = '#',
-	TYPE_BOOLEAN = '!',
-	TYPE_LIST = ']',
-	TYPE_DICTIONARY = '}'
+	LTNS_UNDEFINED = 0,
+	LTNS_INTEGER   = '#',
+	LTNS_STRING    = ',',
+	LTNS_BOOLEAN   = '!',
+	LTNS_NULL      = '~',
+	LTNS_LIST      = ']',
+	LTNS_DICTIONARY= '}'
 } LTNSType;
 
+int LTNSCreateTerm( LTNSTerm **term, char *payload, size_t payload_length, LTNSType type );
 
-// Creates a new term
-int LTNSTermCreate( LTNSTerm **term , const char* payload, size_t payload_length, LTNSType type );
+int LTNSDestroyTerm( LTNSTerm *term );
 
-// destroies the created term
-int LTNSTermDestroy( LTNSTerm *term );
+int LTNSGetPayload( LTNSTerm *term, char *payload, size_t *length, LTNSType *type );
 
-const char* LTNSTermPayload( LTNSTerm *term );
-size_t LTNSTermPayloadLength( LTNSTerm *term );
-LTNSType LTNSTermType( LTNSTerm *term );
+int LTNSGetPayloadLength( LTNSTerm *term, size_t *length );
 
-#endif
+int LTNSGetPayloadType( LTNSTerm *term, LTNSType *type );
+
+LTNSType LTNSGetType( LTNSTerm *term );
+
+#endif//__LTNSTERM_H___

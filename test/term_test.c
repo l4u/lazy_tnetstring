@@ -165,7 +165,7 @@ LTNSTerm *subject;
 void setup_test()
 {
 	subject = (LTNSTerm*)calloc(1, sizeof(LTNSTerm) );
-	LTNSCreateTerm( subject, "3:foo,", 6, LTNS_STRING);
+	LTNSCreateTerm( &subject, "3:foo,", 6, LTNS_STRING);
 }
 
 void cleanup_test()
@@ -198,15 +198,15 @@ int test_new_invalid()
 {
 	// negative test for invalid data (expected to fail)
 	LTNSDestroyTerm( subject );
-	int result = LTNSCreateTerm( subject, NULL, 4711, LTNS_STRING);
-	!result && (result = LTNSCreateTerm( subject, "foo", 3, LTNS_UNDEFINED));
+	int result = LTNSCreateTerm( &subject, NULL, 4711, LTNS_STRING);
+	!result && (result = LTNSCreateTerm( &subject, "foo", 3, LTNS_UNDEFINED));
 	return !result;
 }
 
 int test_value_int()
 {
 	int result = LTNSDestroyTerm( subject );
-	result && (result = LTNSCreateTerm( subject, "4711", 4, LTNS_INTEGER));
+	result && (result = LTNSCreateTerm( &subject, "4711", 4, LTNS_INTEGER));
 	result && (result = check_raw( subject, "4:4711#", 7 ));
 	result && (result = check_payload( subject, "4711", 4, LTNS_INTEGER ));
 	return result;
@@ -215,7 +215,7 @@ int test_value_int()
 int test_value_bool_true()
 {
 	int result = LTNSDestroyTerm( subject );
-	result && (result = LTNSCreateTerm( subject, "true", 4, LTNS_BOOLEAN));
+	result && (result = LTNSCreateTerm( &subject, "true", 4, LTNS_BOOLEAN));
 	result && (result = check_raw( subject, "4:true!", 7 ));
 	result && (result = check_payload( subject, "true", 4, LTNS_BOOLEAN ));
 	return result;
@@ -224,7 +224,7 @@ int test_value_bool_true()
 int test_value_bool_false()
 {
 	int result = LTNSDestroyTerm( subject );
-	result && (result = LTNSCreateTerm( subject, "false", 5, LTNS_BOOLEAN));
+	result && (result = LTNSCreateTerm( &subject, "false", 5, LTNS_BOOLEAN));
 	result && (result = check_raw( subject, "5:false!", 8 ));
 	result && (result = check_payload( subject, "false", 5, LTNS_BOOLEAN ));
 	return result;
@@ -233,7 +233,7 @@ int test_value_bool_false()
 int test_value_null()
 {
 	int result = LTNSDestroyTerm( subject );
-	result && (result = LTNSCreateTerm( subject, "", 0, LTNS_NULL));
+	result && (result = LTNSCreateTerm( &subject, "", 0, LTNS_NULL));
 	result && (result = check_raw( subject, "0:~", 3 ));
 	result && (result = check_payload( subject, "", 0, LTNS_NULL ));
 	return result;
@@ -242,7 +242,7 @@ int test_value_null()
 int test_value_list()
 {
 	int result = LTNSDestroyTerm( subject );
-	result && (result = LTNSCreateTerm( subject, "5:Hello,5:World,", 16, LTNS_LIST));
+	result && (result = LTNSCreateTerm( &subject, "5:Hello,5:World,", 16, LTNS_LIST));
 	result && (result = check_raw( subject, "16:5:Hello,5:World,]", 20 ));
 	result && (result = check_payload( subject, "5:Hello,5:World,", 16, LTNS_LIST ));
 	return result;
@@ -251,7 +251,7 @@ int test_value_list()
 int test_value_dictionary()
 {
 	int result = LTNSDestroyTerm( subject );
-	result && (result = LTNSCreateTerm( subject, "3:key,5:value,", 14, LTNS_DICTIONARY));
+	result && (result = LTNSCreateTerm( &subject, "3:key,5:value,", 14, LTNS_DICTIONARY));
 	result && (result = check_raw( subject, "13:3:key,5:value,]", 18 ));
 	result && (result = check_payload( subject, "3:key,5:value,", 14, LTNS_DICTIONARY));
 	return result;
@@ -261,8 +261,8 @@ int test_value_undefined()
 {
 	// negative check : it is expected to fail!
 	int result = LTNSDestroyTerm( subject );
-	result && (result = LTNSCreateTerm( subject, "3:foo/", 6, LTNS_STRING)); // correct type, incorect string
-	!result && (result = LTNSCreateTerm( subject, "3:foo,", 6, LTNS_UNDEFINED)); // correct string, but incorrect type
+	result && (result = LTNSCreateTerm( &subject, "3:foo/", 6, LTNS_STRING)); // correct type, incorect string
+	!result && (result = LTNSCreateTerm( &subject, "3:foo,", 6, LTNS_UNDEFINED)); // correct string, but incorrect type
 	return !result;
 }
 
@@ -270,7 +270,7 @@ int test_value_null_bytes()
 {
 	char *data = "\061\061\000\061\061"; // store a string containing NULL-Bytes
 	int result = LTNSDestroyTerm( subject );
-	result && (result = LTNSCreateTerm( subject, data, 5, LTNS_STRING ));
+	result && (result = LTNSCreateTerm( &subject, data, 5, LTNS_STRING ));
 	return result && check_payload( subject, "aa\000aa", 5, LTNS_STRING );
 }
 
