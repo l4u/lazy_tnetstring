@@ -1,12 +1,11 @@
 #ifndef __LTNSDATAACCESS_H__
 #define __LTNSDATAACCESS_H__
 
-#include <stdlib.h>
+#include "LTNSTerm.h"
 
 struct _LTNSDataAccess;
 typedef struct _LTNSDataAccess LTNSDataAccess;
 
-#include "LTNSTerm.h"
 
 
 typedef struct LTNSChildNode

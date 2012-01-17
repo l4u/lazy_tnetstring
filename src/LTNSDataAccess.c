@@ -1,5 +1,6 @@
-#include <LTNSDataAccess.h>
+#include "LTNSDataAccess.h"
 #include <string.h>
+#include <stdlib.h>
 
 #define FALSE 0
 #define TRUE (!FALSE)
@@ -10,8 +11,8 @@
 
 static LTNSError LTNSDataAccessCreatePrivate(LTNSDataAccess** data_access, const char* tnetstring, size_t length, int is_root);
 static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const char* key, LTNSTerm** term);
-static LTNSError LTNSDataAccessParseAt(LTNSDataAccess* data_access, size_t offset, char** payload, size_t* payload_length);
 static LTNSError LTNSDataAccessAddChild(LTNSDataAccess* data_access, LTNSDataAccess* child);
+static LTNSError LTNSDataAccessParseFirstTerm(const char* tnetstring, char** payload, size_t* payload_length, size_t* term_length);
 
 struct _LTNSDataAccess
 {
@@ -50,16 +51,17 @@ static LTNSError LTNSDataAccessCreatePrivate(LTNSDataAccess** data_access,
 		return INVALID_TNETSTRING;
 	}
 
-	*data_access = malloc(sizeof(LTNSDataAccess));
+	*data_access = (LTNSDataAccess*)malloc(sizeof(LTNSDataAccess));
 	if (!*data_access)
 		return OUT_OF_MEMORY;
 
 	if (is_root)
 	{
-		(*data_access)->tnetstring = malloc(sizeof(char) * length);
+		(*data_access)->tnetstring = (char*)malloc(sizeof(char) * length + 1);
 		if (!(*data_access)->tnetstring)
 			return OUT_OF_MEMORY;
 		(*data_access)->tnetstring = memcpy((*data_access)->tnetstring, tnetstring, length);
+		(*data_access)->tnetstring[length] = '\0';
 	}
 	else
 	{
@@ -232,7 +234,7 @@ static LTNSError LTNSDataAccessAddChild(LTNSDataAccess* data_access, LTNSDataAcc
 
 	if (!data_access->children)
 	{
-		data_access->children = malloc(sizeof(LTNSChildNode));
+		data_access->children = (LTNSChildNode*)malloc(sizeof(LTNSChildNode));
 		if (!data_access->children)
 			return OUT_OF_MEMORY;
 		data_access->children->child = child;
@@ -245,7 +247,7 @@ static LTNSError LTNSDataAccessAddChild(LTNSDataAccess* data_access, LTNSDataAcc
 	while (last->next)
 		last = last->next;
 
-	last->next = malloc(sizeof(LTNSChildNode));
+	last->next = (LTNSChildNode*)malloc(sizeof(LTNSChildNode));
 	if (!last->next)
 		return OUT_OF_MEMORY;
 	last->next->child = child;
@@ -259,27 +261,27 @@ static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const 
 	LTNSError error = 0;
 	char* payload;
 	size_t payload_len;
-	size_t offset = 0;
 	size_t key_len = strlen(key);
-	size_t term_raw_len;
-	char* term_raw_data;
+	size_t term_len;
+	char* tnetstring;
 
+	error = LTNSDataAccessParseFirstTerm(data_access->tnetstring, &tnetstring, NULL, NULL);
 
 	while (!error)
 	{
-		error = LTNSDataAccessParseAt(data_access, offset, &payload, &payload_len);
+		error = LTNSDataAccessParseFirstTerm(tnetstring, &payload, &payload_len, &term_len);
 		if (error)
 			break;
 
-		offset += (payload + payload_len) - data_access->tnetstring + 2;
+		tnetstring += term_len;
+		if (tnetstring > (data_access->tnetstring + data_access->length))
+			break;
 
 		if (!bcmp(payload, key, MIN(key_len, payload_len)))
 		{
-			error = LTNSDataAccessParseAt(data_access, offset, &payload, &payload_len);
+			error = LTNSDataAccessParseFirstTerm(tnetstring, &payload, &payload_len, &term_len);
 			RETURN_VAL_IF(error);
-			term_raw_data = data_access->tnetstring + offset;
-			term_raw_len = (payload - term_raw_data) + payload_len + 1;
-			error = LTNSTermCreateNested(term, term_raw_data, term_raw_len);
+			error = LTNSTermCreateNested(term, tnetstring, term_len);
 			RETURN_VAL_IF(error);
 			return 0;
 		}
@@ -288,24 +290,28 @@ static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const 
 	return KEY_NOT_FOUND;
 }
 
-static LTNSError LTNSDataAccessParseAt(LTNSDataAccess* data_access, size_t offset, char** payload, size_t* payload_length)
+// FIXME: User LTNSTermCreateNested instead?
+static LTNSError LTNSDataAccessParseFirstTerm(const char* tnetstring,
+		char** payload,
+		size_t* payload_length,
+		size_t* term_length)
 {
 	char* colon;
+	size_t header = 0;
 	*payload = NULL;
-	*payload_length = 0;
-	if (offset >= data_access->length)
-		return INVALID_TNETSTRING;
 
-	*payload_length = (size_t)strtol(data_access->tnetstring + offset, &colon, 10);
-	if (colon == data_access->tnetstring)
+	header = (size_t)strtol(tnetstring, &colon, 10);
+	if (colon == tnetstring)
 		return INVALID_TNETSTRING;
 	if (*colon != ':' || *colon == '\0')
 		return INVALID_TNETSTRING;
-	if ((colon + (*payload_length) + 1) > (data_access->tnetstring + data_access->length))
-		return INVALID_TNETSTRING;
-	if (colon > (data_access->tnetstring + offset + MAX_PREFIX_LENGTH))
+	if (colon > (tnetstring + MAX_PREFIX_LENGTH))
 		return INVALID_TNETSTRING;
 
+	if (term_length)
+		*term_length = (colon - tnetstring) + header + 2;
+	if (payload_length)
+		*payload_length = header;
 	*payload = colon + 1;
 
 	return 0;
