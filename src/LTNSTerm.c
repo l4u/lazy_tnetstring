@@ -7,7 +7,7 @@ int LTNSTermCreate( LTNSTerm **term, char *payload, size_t payload_length, LTNST
 	return 0;
 }
 
-int LTNSTermCreateNested( LTNSTerm **term, char *payload, size_t payload_length, LTNSType type )
+int LTNSTermCreateNested( LTNSTerm **term, char *raw_data, size_t raw_length )
 {
 	return 0;
 }

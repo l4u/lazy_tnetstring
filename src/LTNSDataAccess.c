@@ -214,17 +214,10 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 
 LTNSError LTNSDataAccessAsTerm(LTNSDataAccess* data_access, LTNSTerm** term)
 {
-	LTNSError error;
-	char* payload;
-	size_t payload_len;
-	
 	if (!data_access || !term)
 		return INVALID_ARGUMENT;
 
-	error = LTNSDataAccessParseAt(data_access, 0, &payload, &payload_len);
-	RETURN_VAL_IF(error);
-	error = LTNSCreateTerm(term, payload, payload_len, payload[payload_len + 1]);
-	RETURN_VAL_IF(error);
+	error = LTNSCreateNestedTerm(term, data_access->tnetstring, data_access->length);
 
 	return 0;
 }
@@ -238,7 +231,9 @@ static LTNSError LTNSDataAccessAddChild(LTNSDataAccess* data_access, LTNSDataAcc
 	if (!data_access->children)
 	{
 		data_access->children = malloc(sizeof(LTNSChildNode));
-		data_access->children->child = NULL;
+		if (!data_access->children)
+			return OUT_OF_MEMORY;
+		data_access->children->child = child;
 		data_access->children->next = NULL;
 	}
 
@@ -247,6 +242,8 @@ static LTNSError LTNSDataAccessAddChild(LTNSDataAccess* data_access, LTNSDataAcc
 		last = last->next;
 
 	last->next = malloc(sizeof(LTNSChildNode));
+	if (!last->next)
+		return OUT_OF_MEMORY;
 	last->next->child = child;
 	last->next->next = NULL;
 
@@ -260,6 +257,9 @@ static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const 
 	size_t payload_len;
 	size_t offset = 0;
 	size_t key_len = strlen(key);
+	size_t term_raw_len;
+	char* term_raw_data;
+
 
 	while (!error)
 	{
@@ -273,7 +273,9 @@ static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const 
 		{
 			error = LTNSDataAccessParseAt(data_access, offset, &payload, &payload_len);
 			RETURN_VAL_IF(error);
-			error = LTNSCreateTerm(term, payload, payload_len, payload[payload_len + 1]);
+			term_raw_data = data_access->tnetstring + offset;
+			term_raw_len = (payload - term_raw_data) + payload_len + 1;
+			error = LTNSCreateNestedTerm(term, term_raw_data, term_raw_len)
 			RETURN_VAL_IF(error);
 			return 0;
 		}

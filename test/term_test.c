@@ -204,7 +204,7 @@ int test_value_nested()
 	char *data = "3:foo,";
 
 	LTNSTerm *nested = NULL;
-	LTNSTermCreateNested( &nested, data, 6, LTNS_STRING);
+	LTNSTermCreateNested( &nested, data, 6);
 
 	return data == nested->raw_data;
 }
