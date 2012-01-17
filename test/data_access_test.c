@@ -158,7 +158,7 @@ int test_create_with_parent()
 	/* with parent */
 	error = LTNSDataAccessCreate(&parent, tnetstring, strlen(tnetstring));
 	assert(!error);
-	error = LTNSDataAccessCreateWithParent(&data_access, tnetstring, strlen(tnetstring), parent, 0);
+	error = LTNSDataAccessCreateWithParent(&data_access, parent, 0, 0);
 	assert(!error);
 	assert(data_access);
 	size_t offset = 0;
@@ -181,12 +181,14 @@ int test_create_with_parent()
 
 int test_create_with_scope()
 {
-	LTNSDataAccess *data_access = NULL;
+	LTNSDataAccess *data_access = NULL, *parent;
 	LTNSError error;
 	const char* tnetstring = "0:}";
 
 	/* with scope */
-	error = LTNSDataAccessCreateWithScope(&data_access, tnetstring, strlen(tnetstring), NULL, 0, "scope");
+	error = LTNSDataAccessCreate(&parent, tnetstring, strlen(tnetstring));
+	assert(!error);
+	error = LTNSDataAccessCreateWithScope(&data_access, parent, 0, 0, "scope");
 	assert(!error);
 	assert(data_access);
 	char* scope = NULL;
@@ -270,7 +272,9 @@ int test_get_nested()
 	assert ( LTNSGetPayload( term, &payload, &length, &type ) );
 	assert(type == LTNS_DICTIONARY);
 
-	error = LTNSDataAccessCreateWithParent(&inner, tnetstring, strlen(tnetstring), data_access, 0);
+	size_t offset = 0;
+	LTNSDataAccessTermOffset(data_access, term, &offset);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
 	assert(inner != NULL);
 	error = LTNSDataAccessGet(inner, "inner", &term);
 
@@ -298,7 +302,10 @@ int test_get_unknown_nested()
 	size_t length = 0;
 	assert(LTNSGetPayload(term, &payload, &length, &type)); 
 	assert(type == LTNS_DICTIONARY);
-	error = LTNSDataAccessCreateWithParent(&inner, payload, length, data_access, 0);
+
+	size_t offset = 0;
+	LTNSDataAccessTermOffset(data_access, term, &offset);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
 	assert(inner != NULL);
 	error = LTNSDataAccessGet(inner, "non-existing-key", &term);
 	assert(term == NULL);
@@ -399,7 +406,10 @@ int test_set_nested_same_length()
 	size_t length = 0;
 	assert(LTNSGetPayload(term, &payload, &length, &type)); 
 	assert(type == LTNS_DICTIONARY);
-	error = LTNSDataAccessCreateWithParent(&inner, payload, length, data_access, 0);
+
+	size_t offset = 0;
+	LTNSDataAccessTermOffset(data_access, term, &offset);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
 	assert(inner != NULL);
 	LTNSCreateTerm(&term, "baz", 3, LTNS_STRING);
 	LTNSDataAccessSet(inner, "foo", term);
@@ -429,7 +439,10 @@ int test_set_nested_longer()
 	size_t length = 0;
 	assert(LTNSGetPayload(term, &payload, &length, &type)); 
 	assert(type == LTNS_DICTIONARY);
-	error = LTNSDataAccessCreateWithParent(&inner, payload, length, data_access, 0);
+
+	size_t offset = 0;
+	LTNSDataAccessTermOffset(data_access, term, &offset);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
 	assert(inner != NULL);
 	LTNSCreateTerm(&term, "foobar", 6, LTNS_STRING);
 	LTNSDataAccessSet(inner, "foo", term);
@@ -459,7 +472,11 @@ int test_set_nested_shorter()
 	char *payload = NULL;
 	assert(LTNSGetPayload(term, &payload, &length, &type)); 
 	assert(type == LTNS_DICTIONARY);
-	error = LTNSDataAccessCreateWithParent(&inner, payload, length, data_access, 0);
+
+
+	size_t offset = 0;
+	LTNSDataAccessTermOffset(data_access, term, &offset);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
 	assert(inner != NULL);
 	LTNSCreateTerm(&term, "bar", 3, LTNS_STRING);
 	LTNSDataAccessSet(inner, "foo", term);
@@ -499,7 +516,9 @@ int test_set_multiple()
 	assert(LTNSGetPayload(term, &payload, &length, &type)); 
 	assert(type == LTNS_DICTIONARY);
 
-	error = LTNSDataAccessCreateWithParent(&inner, payload, length, data_access, 0);
+	size_t offset = 0;
+	LTNSDataAccessTermOffset(data_access, term, &offset);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
 	assert(inner != NULL);
 	LTNSCreateTerm(&term, "foobar", 6, LTNS_STRING);
 	LTNSDataAccessSet(inner, "foo", term);
@@ -531,7 +550,10 @@ int test_set_multiple_scope()
 	LTNSType type = LTNS_UNDEFINED;
 	assert(LTNSGetPayload(term, &payload, &length, &type)); 
 	assert(type == LTNS_DICTIONARY);
-	error = LTNSDataAccessCreateWithParent(&inner, payload, length, data_access, 0);
+
+	size_t offset = 0;
+	LTNSDataAccessTermOffset(data_access, term, &offset);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
 	assert(inner != NULL);
 
 	LTNSCreateTerm(&term, "foobar", 6, LTNS_STRING);
@@ -584,7 +606,9 @@ int test_set_multiple_scope_interleaved()
 	assert(LTNSGetPayload(term, &payload, &length, &type)); 
 	assert(type == LTNS_DICTIONARY);
 	
-	error = LTNSDataAccessCreateWithParent(&inner, payload, length, data_access, 0);
+	size_t offset = 0;
+	LTNSDataAccessTermOffset(data_access, term, &offset);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
 	assert(inner != NULL);
 	LTNSCreateTerm(&term, "foobar", 6, LTNS_STRING);
 	LTNSDataAccessSet(data_access, "key1", term);
@@ -636,19 +660,23 @@ int test_set_invalidating_scope()
 	size_t length = 0;
 	assert(LTNSGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_DICTIONARY);
-	error = LTNSDataAccessCreateWithParent(&level1, payload, length, data_access, 0);
+	size_t offset = 0;
+	LTNSDataAccessTermOffset(data_access, term, &offset);
+	error = LTNSDataAccessCreateWithParent(&level1, data_access, offset, term->raw_length);
 	assert(level1 != NULL);
 	error = LTNSDataAccessGet(level1, "level2", &term);
 
 	assert(LTNSGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_DICTIONARY);
-	error = LTNSDataAccessCreateWithParent(&level2, payload, length, level1, 0);
+	LTNSDataAccessTermOffset(data_access, term, &offset);
+	error = LTNSDataAccessCreateWithParent(&level2, data_access, offset, term->raw_length);
 	assert(level2 != NULL);
 
 	error = LTNSDataAccessGet(level2, "level3", &term);
 	assert(LTNSGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_DICTIONARY);
-	error = LTNSDataAccessCreateWithParent(&level3, payload, length, level2, 0);
+	LTNSDataAccessTermOffset(data_access, term, &offset);
+	error = LTNSDataAccessCreateWithParent(&level3, data_access, offset, term->raw_length);
 	assert(level3 != NULL);
 	
 	error = LTNSDataAccessCreate(&newlevel3, tnet_newlevel3, strlen(tnet_newlevel3)); 
