@@ -1,11 +1,14 @@
 #include <LTNSDataAccess.h>
 #include <string.h>
 
+#define FALSE 0
+#define TRUE (!FALSE)
 #define MIN_HASH_LENGTH 3 // "0:}"
 #define MAX_PREFIX_LENGTH 10
 #define MIN(a,b) ((a) < (b) ? a : b)
-#define RETURN_IF(a) if (a) return a;
+#define RETURN_VAL_IF(a) if (a) return a;
 
+static LTNSError LTNSDataAccessCreatePrivate(LTNSDataAccess** data_access, const char* tnetstring, size_t length, int is_root);
 static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const char* key, LTNSTerm** term);
 static LTNSError LTNSDataAccessParseAt(LTNSDataAccess* data_access, size_t offset, char** payload, size_t* payload_length);
 static LTNSError LTNSDataAccessAddChild(LTNSDataAccess* data_access, LTNSDataAccess* child);
@@ -20,7 +23,11 @@ struct _LTNSDataAccess
 	LTNSChildNode* children;
 };
 
-LTNSError LTNSDataAccessCreate(LTNSDataAccess** data_access, const char* tnetstring, size_t length)
+/* The root (parent == NULL) owns the copy of the tnetstring */
+static LTNSError LTNSDataAccessCreatePrivate(LTNSDataAccess** data_access,
+		const char* tnetstring,
+		size_t length,
+		int is_root)
 {
 	if (!data_access)
 		return INVALID_ARGUMENT;
@@ -47,10 +54,17 @@ LTNSError LTNSDataAccessCreate(LTNSDataAccess** data_access, const char* tnetstr
 	if (!*data_access)
 		return OUT_OF_MEMORY;
 
-	(*data_access)->tnetstring = malloc(sizeof(char) * length);
-	if (!(*data_access)->tnetstring)
-		return OUT_OF_MEMORY;
-	(*data_access)->tnetstring = memcpy((*data_access)->tnetstring, tnetstring, length);
+	if (is_root)
+	{
+		(*data_access)->tnetstring = malloc(sizeof(char) * length);
+		if (!(*data_access)->tnetstring)
+			return OUT_OF_MEMORY;
+		(*data_access)->tnetstring = memcpy((*data_access)->tnetstring, tnetstring, length);
+	}
+	else
+	{
+		(*data_access)->tnetstring = (char*)tnetstring;
+	}
 
 	(*data_access)->length = length;
 	(*data_access)->scope = NULL;
@@ -60,18 +74,25 @@ LTNSError LTNSDataAccessCreate(LTNSDataAccess** data_access, const char* tnetstr
 	return 0;
 }
 
+LTNSError LTNSDataAccessCreate(LTNSDataAccess** data_access, const char* tnetstring, size_t length)
+{
+	return LTNSDataAccessCreatePrivate(data_access, tnetstring, length, TRUE);
+}
+
 LTNSError LTNSDataAccessCreateWithParent(LTNSDataAccess** data_access,
-		const char* tnetstring,
-		size_t length,
 		LTNSDataAccess* parent,
-		size_t offset)
+		size_t offset,
+		size_t length)
 {
 	LTNSError error;
+	if (!parent)
+		return INVALID_ARGUMENT;
+
 	if (offset >= length)
 		return INVALID_TNETSTRING;
 
-	error = LTNSDataAccessCreate(data_access, tnetstring + offset, length - offset);
-	RETURN_IF(error);
+	error = LTNSDataAccessCreatePrivate(data_access, parent->tnetstring + offset, length, FALSE);
+	RETURN_VAL_IF(error);
 
 	(*data_access)->parent = parent;
 	error = LTNSDataAccessAddChild(parent, *data_access);
@@ -87,14 +108,13 @@ LTNSError LTNSDataAccessCreateWithParent(LTNSDataAccess** data_access,
 	return 0;
 }
 LTNSError LTNSDataAccessCreateWithScope(LTNSDataAccess** data_access,
-		const char* tnetstring,
-		size_t length,
 		LTNSDataAccess* parent,
 		size_t offset,
+		size_t length,
 		const char* scope)
 {
-	LTNSError error = LTNSDataAccessCreateWithParent(data_access, tnetstring, length, parent, offset);
-	RETURN_IF(error);
+	LTNSError error = LTNSDataAccessCreateWithParent(data_access, parent, offset, length);
+	RETURN_VAL_IF(error);
 
 	(*data_access)->scope = strdup(scope); // NOTE: scope must be null terminated!
 
@@ -119,7 +139,8 @@ LTNSError LTNSDataAccessDestroy(LTNSDataAccess* data_access)
 		}
 	}
 
-	free(data_access->tnetstring);
+	if (!data_access->parent)
+		free(data_access->tnetstring);
 	free(data_access);
 
 	return 0;
@@ -188,9 +209,9 @@ LTNSError LTNSDataAccessAsTerm(LTNSDataAccess* data_access, LTNSTerm** term)
 		return INVALID_ARGUMENT;
 
 	error = LTNSDataAccessParseAt(data_access, 0, &payload, &payload_len);
-	RETURN_IF(error);
+	RETURN_VAL_IF(error);
 	error = LTNSCreateTerm(term, payload, payload_len, payload[payload_len + 1]);
-	RETURN_IF(error);
+	RETURN_VAL_IF(error);
 
 	return 0;
 }
@@ -238,10 +259,9 @@ static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const 
 		if (!bcmp(payload, key, MIN(key_len, payload_len)))
 		{
 			error = LTNSDataAccessParseAt(data_access, offset, &payload, &payload_len);
-			RETURN_IF(error);
+			RETURN_VAL_IF(error);
 			error = LTNSCreateTerm(term, payload, payload_len, payload[payload_len + 1]);
-			RETURN_IF(error);
-
+			RETURN_VAL_IF(error);
 			return 0;
 		}
 	}
@@ -258,11 +278,14 @@ static LTNSError LTNSDataAccessParseAt(LTNSDataAccess* data_access, size_t offse
 		return INVALID_TNETSTRING;
 
 	*payload_length = (size_t)strtol(data_access->tnetstring + offset, &colon, 10);
-	if (!colon || *colon != ':' || *colon == '\0' || colon > (data_access->tnetstring + offset + MAX_PREFIX_LENGTH))
-	{
-		*payload_length = 0;
+	if (colon == data_access->tnetstring)
 		return INVALID_TNETSTRING;
-	}
+	if (*colon != ':' || *colon == '\0')
+		return INVALID_TNETSTRING;
+	if ((colon + (*payload_length) + 1) > (data_access->tnetstring + data_access->length))
+		return INVALID_TNETSTRING;
+	if (colon > (data_access->tnetstring + offset + MAX_PREFIX_LENGTH))
+		return INVALID_TNETSTRING;
 
 	*payload = colon + 1;
 
