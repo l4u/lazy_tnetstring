@@ -12,7 +12,7 @@ int LTNSDestroyTerm( LTNSTerm *term )
 	return 0;
 }
 
-int LTNSGetPayload( LTNSTerm *term, char *payload, size_t *length, LTNSType *type )
+int LTNSGetPayload( LTNSTerm *term, char **payload, size_t *length, LTNSType *type )
 {
 	return 0;
 }

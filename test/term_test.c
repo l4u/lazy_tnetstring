@@ -63,7 +63,7 @@ static int check_payload( LTNSTerm *term, const char* expected_payload, size_t e
 	char *payload = NULL;
 	size_t length = 0;
 	LTNSType type = LTNS_UNDEFINED;
-	int result = LTNSGetPayload( term, payload, &length, &type );
+	int result = LTNSGetPayload( term, &payload, &length, &type );
 	LTNSType seperate_type = LTNS_UNDEFINED;
 	result &= LTNSGetPayloadType( term, &seperate_type );
 	

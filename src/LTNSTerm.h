@@ -25,7 +25,7 @@ int LTNSCreateTerm( LTNSTerm **term, char *payload, size_t payload_length, LTNST
 
 int LTNSDestroyTerm( LTNSTerm *term );
 
-int LTNSGetPayload( LTNSTerm *term, char *payload, size_t *length, LTNSType *type );
+int LTNSGetPayload( LTNSTerm *term, char **payload, size_t *length, LTNSType *type );
 
 int LTNSGetPayloadLength( LTNSTerm *term, size_t *length );
 
