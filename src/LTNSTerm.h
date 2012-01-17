@@ -21,16 +21,18 @@ typedef enum
 	LTNS_DICTIONARY= '}'
 } LTNSType;
 
-int LTNSCreateTerm( LTNSTerm **term, char *payload, size_t payload_length, LTNSType type );
+int LTNSTermCreate( LTNSTerm **term, char *payload, size_t payload_length, LTNSType type );
 
-int LTNSDestroyTerm( LTNSTerm *term );
+int LTNSTermCreateNested( LTNSTerm **term, char *payload, size_t payload_length, LTNSType type );
 
-int LTNSGetPayload( LTNSTerm *term, char **payload, size_t *length, LTNSType *type );
+int LTNSTermDestroy( LTNSTerm *term );
 
-int LTNSGetPayloadLength( LTNSTerm *term, size_t *length );
+int LTNSTermGetPayload( LTNSTerm *term, char **payload, size_t *length, LTNSType *type );
 
-int LTNSGetPayloadType( LTNSTerm *term, LTNSType *type );
+int LTNSTermGetPayloadLength( LTNSTerm *term, size_t *length );
 
-LTNSType LTNSGetType( LTNSTerm *term );
+int LTNSTermGetPayloadType( LTNSTerm *term, LTNSType *type );
+
+LTNSType LTNSTermGetType( LTNSTerm *term );
 
 #endif//__LTNSTERM_H___

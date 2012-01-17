@@ -2,27 +2,32 @@
 #include <stdlib.h>
 #include "LTNSTerm.h"
 
-int LTNSCreateTerm( LTNSTerm **term, char *payload, size_t payload_length, LTNSType type )
+int LTNSTermCreate( LTNSTerm **term, char *payload, size_t payload_length, LTNSType type )
 {
 	return 0;
 }
 
-int LTNSDestroyTerm( LTNSTerm *term )
+int LTNSTermCreateNested( LTNSTerm **term, char *payload, size_t payload_length, LTNSType type )
 {
 	return 0;
 }
 
-int LTNSGetPayload( LTNSTerm *term, char **payload, size_t *length, LTNSType *type )
+int LTNSTermDestroy( LTNSTerm *term )
 {
 	return 0;
 }
 
-int LTNSGetPayloadLength( LTNSTerm *term, size_t *length )
+int LTNSTermGetPayload( LTNSTerm *term, char **payload, size_t *length, LTNSType *type )
 {
 	return 0;
 }
 
-int LTNSGetPayloadType( LTNSTerm *term, LTNSType *type )
+int LTNSTermGetPayloadLength( LTNSTerm *term, size_t *length )
+{
+	return 0;
+}
+
+int LTNSTermGetPayloadType( LTNSTerm *term, LTNSType *type )
 {
 	return LTNS_UNDEFINED;
 }
