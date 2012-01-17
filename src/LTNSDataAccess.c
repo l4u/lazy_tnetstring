@@ -4,6 +4,7 @@
 #define MIN_HASH_LENGTH 3 // "0:}"
 #define MAX_PREFIX_LENGTH 10
 #define MIN(a,b) ((a) < (b) ? a : b)
+#define RETURN_IF(a) if (a) return a;
 
 static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const char* key, LTNSTerm** term);
 static LTNSError LTNSDataAccessParseAt(LTNSDataAccess* data_access, size_t offset, char** payload, size_t* payload_length);
@@ -70,8 +71,7 @@ LTNSError LTNSDataAccessCreateWithParent(LTNSDataAccess** data_access,
 		return INVALID_TNETSTRING;
 
 	error = LTNSDataAccessCreate(data_access, tnetstring + offset, length - offset);
-	if (error)
-		return error;
+	RETURN_IF(error);
 
 	(*data_access)->parent = parent;
 	error = LTNSDataAccessAddChild(parent, *data_access);
@@ -94,8 +94,7 @@ LTNSError LTNSDataAccessCreateWithScope(LTNSDataAccess** data_access,
 		const char* scope)
 {
 	LTNSError error = LTNSDataAccessCreateWithParent(data_access, tnetstring, length, parent, offset);
-	if (error)
-		return error;
+	RETURN_IF(error);
 
 	(*data_access)->scope = strdup(scope); // NOTE: scope must be null terminated!
 
@@ -115,7 +114,7 @@ LTNSError LTNSDataAccessDestroy(LTNSDataAccess* data_access)
 		{
 			to_delete = child;
 			child = child->next;
-			free(to_delete->child);
+			LTNSDataAccessDestroy(to_delete->child);
 			free(to_delete);
 		}
 	}
@@ -126,36 +125,40 @@ LTNSError LTNSDataAccessDestroy(LTNSDataAccess* data_access)
 	return 0;
 }
 
-LTNSDataAccess* LTNSDataAccessParent(LTNSDataAccess* data_access)
+LTNSError LTNSDataAccessParent(LTNSDataAccess* data_access, LTNSDataAccess** parent)
 {
-	if (!data_access)
-		return NULL;
+	if (!data_access || !parent)
+		return INVALID_ARGUMENT;
 
-	return data_access->parent;
+	*parent = data_access->parent;
+	return 0;
 }
 
-LTNSChildNode* LTNSDataAccessChildren(LTNSDataAccess* data_access)
+LTNSError LTNSDataAccessChildren(LTNSDataAccess* data_access, LTNSChildNode** first_child)
 {
-	if (!data_access)
-		return NULL;
+	if (!data_access || !first_child)
+		return INVALID_ARGUMENT;
 
-	return data_access->children;
+	*first_child = data_access->children;
+	return 0;
 }
 
-size_t LTNSDataAccessOffset(LTNSDataAccess* data_access)
+LTNSError LTNSDataAccessOffset(LTNSDataAccess* data_access, size_t* offset)
 {
-	if (!data_access)
-		return 0;
+	if (!data_access || !offset)
+		return INVALID_ARGUMENT;
 
-	return data_access->offset;
+	*offset = data_access->offset;
+	return 0;
 }
 
-const char* LTNSDataAccessScope(LTNSDataAccess* data_access)
+LTNSError LTNSDataAccessScope(LTNSDataAccess* data_access, char** scope)
 {
-	if (!data_access)
-		return NULL;
+	if (!data_access || !scope)
+		return INVALID_ARGUMENT;
 
-	return data_access->scope;
+	*scope = data_access->scope;
+	return 0;
 }
 
 LTNSError LTNSDataAccessGet(LTNSDataAccess* data_access, const char* key, LTNSTerm** term)
@@ -175,24 +178,21 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 {
 }
 
-LTNSTerm* LTNSDataAccessAsTerm(LTNSDataAccess* data_access)
+LTNSError LTNSDataAccessAsTerm(LTNSDataAccess* data_access, LTNSTerm** term)
 {
 	LTNSError error;
 	char* payload;
 	size_t payload_len;
-	LTNSTerm *term = NULL;
 	
-	if (!data_access)
-		return NULL;
+	if (!data_access || !term)
+		return INVALID_ARGUMENT;
 
 	error = LTNSDataAccessParseAt(data_access, 0, &payload, &payload_len);
-	if (error)
-		return NULL;
-	error = LTNSCreateTerm(&term, payload, payload_len, payload[payload_len + 1]);
-	if (error)
-		return NULL;
+	RETURN_IF(error);
+	error = LTNSCreateTerm(term, payload, payload_len, payload[payload_len + 1]);
+	RETURN_IF(error);
 
-	return term;
+	return 0;
 }
 
 /* static scope */
@@ -238,11 +238,9 @@ static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const 
 		if (!bcmp(payload, key, MIN(key_len, payload_len)))
 		{
 			error = LTNSDataAccessParseAt(data_access, offset, &payload, &payload_len);
-			if (error)
-				return error;
+			RETURN_IF(error);
 			error = LTNSCreateTerm(term, payload, payload_len, payload[payload_len + 1]);
-			if (error)
-				return error;
+			RETURN_IF(error);
 
 			return 0;
 		}
