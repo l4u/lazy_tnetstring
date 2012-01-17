@@ -237,6 +237,8 @@ static LTNSError LTNSDataAccessAddChild(LTNSDataAccess* data_access, LTNSDataAcc
 			return OUT_OF_MEMORY;
 		data_access->children->child = child;
 		data_access->children->next = NULL;
+
+		return 0;
 	}
 
 	last = data_access->children;
