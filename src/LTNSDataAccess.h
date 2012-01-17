@@ -36,6 +36,7 @@ LTNSError LTNSDataAccessParent(LTNSDataAccess* data_access, LTNSDataAccess** par
 LTNSError LTNSDataAccessChildren(LTNSDataAccess* data_access, LTNSChildNode** first_child);
 
 LTNSError LTNSDataAccessOffset(LTNSDataAccess* data_access, size_t* offset);
+LTNSError LTNSDataAccessTermOffset(LTNSDataAccess* data_access, LTNSTerm* term, size_t* offset);
 LTNSError LTNSDataAccessScope(LTNSDataAccess* data_access, char** scope);
 
 LTNSError LTNSDataAccessGet(LTNSDataAccess* data_access, const char* key, LTNSTerm** term);

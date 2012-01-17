@@ -173,6 +173,19 @@ LTNSError LTNSDataAccessOffset(LTNSDataAccess* data_access, size_t* offset)
 	return 0;
 }
 
+LTNSError LTNSDataAccessTermOffset(LTNSDataAccess* data_access, LTNSTerm* term, size_t* offset)
+{
+	if (!data_access || !term || !offset)
+		return INVALID_ARGUMENT;
+	if (term->raw_data < data_access->tnetstring)
+		return INVALID_ARGUMENT;
+	if (term->raw_data >= (data_access->tnetstring + data_access->length))
+		return INVALID_ARGUMENT;
+
+	*offset = term->raw_data - data_access->tnetstring;
+	return 0;
+}
+
 LTNSError LTNSDataAccessScope(LTNSDataAccess* data_access, char** scope)
 {
 	if (!data_access || !scope)
