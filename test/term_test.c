@@ -34,6 +34,9 @@ int test_value_copy();
 int test_value_null_bytes();
 int test_value_get_with_null_arguments();
 
+// utility tests
+int test_count_digits();
+
 test_case tests[] = 
 {
 	/*  0 */ {test_new, "#new"},
@@ -52,6 +55,8 @@ test_case tests[] =
 	/* 10 */ {test_value_copy, "copies the given payload into newly created data" },
 	/* 11 */ {test_value_null_bytes, "value containing null bytes" },
 	/* 12 */ {test_value_get_with_null_arguments, "value containing null bytes" },
+
+	/* 13 */ { test_count_digits, "value test" },
 };
 
 // helper functions
@@ -69,9 +74,9 @@ static int check_payload( LTNSTerm *term, const char* expected_payload, size_t e
 	LTNSType type = LTNS_UNDEFINED;
 	int result = LTNSTermGetPayload( term, &payload, &length, &type );
 	LTNSType seperate_type = LTNS_UNDEFINED;
-	result &= LTNSTermGetPayloadType( term, &seperate_type );
+	result |= LTNSTermGetPayloadType( term, &seperate_type );
 	
-	return result && 
+	return result == 0 && 
 		(length == expected_length) && 
 		(type == expected_type) &&
 		(seperate_type == expected_type) &&
@@ -85,15 +90,15 @@ LTNSTerm *subject;
 void setup_test()
 {
 	subject = (LTNSTerm*)calloc(1, sizeof(LTNSTerm) );
-	LTNSTermCreate( &subject, "3:foo,", 6, LTNS_STRING);
+	assert( subject != NULL );
+	assert( 0 == LTNSTermCreate( &subject, "foo", 3, LTNS_STRING) );
 }
 
 void cleanup_test()
 {
-	LTNSTermDestroy( subject );
+	assert( 0 == LTNSTermDestroy( subject ) );
 	free(subject);
 }
-
 
 // declare tests
 int test_new()
@@ -102,16 +107,17 @@ int test_new()
 	size_t length = subject->raw_length;
 
 	// raw data check
-	if( !data || length != 6 || strcmp( data, "3:foo," ) != 0 )
-	{
-		return 0;
-	}
+	assert( !data || length != 6 || strcmp( data, "foo" ) != 0 );
 
 	// payload check
 	LTNSType type = LTNS_UNDEFINED;
 	int result = LTNSTermGetPayloadType( subject, &type );
-	result && (result = LTNSTermGetPayloadLength( subject, &length));
-	return result && (length == 3) && (type == LTNS_STRING);
+	assert( 0 == result );
+	assert( type == LTNS_STRING );
+
+	assert( 0 == LTNSTermGetPayloadLength( subject, &length) );
+	assert( 3 == length );
+	return result == 0;
 }
 
 int test_new_invalid()
@@ -119,71 +125,70 @@ int test_new_invalid()
 	// negative test for invalid data (expected to fail)
 	LTNSTermDestroy( subject );
 	int result = LTNSTermCreate( &subject, NULL, 4711, LTNS_STRING);
-	!result && (result = LTNSTermCreate( &subject, "foo", 3, LTNS_UNDEFINED));
-	return !result;
+	assert( 0 != (result = LTNSTermCreate( &subject, "foo", 3, LTNS_UNDEFINED)));
+	return result != 0;
 }
 
 int test_value_int()
 {
 	int result = LTNSTermDestroy( subject );
-	result && (result = LTNSTermCreate( &subject, "4711", 4, LTNS_INTEGER));
-	result && (result = check_raw( subject, "4:4711#", 7 ));
-	result && (result = check_payload( subject, "4711", 4, LTNS_INTEGER ));
-	return result;
+	result = LTNSTermCreate( &subject, "4711", 4, LTNS_INTEGER);
+	result = check_raw( subject, "4:4711#", 7 );
+	result = check_payload( subject, "4711", 4, LTNS_INTEGER );
+	return result == 0;
 }
 
 int test_value_bool_true()
 {
 	int result = LTNSTermDestroy( subject );
-	result && (result = LTNSTermCreate( &subject, "true", 4, LTNS_BOOLEAN));
-	result && (result = check_raw( subject, "4:true!", 7 ));
-	result && (result = check_payload( subject, "true", 4, LTNS_BOOLEAN ));
-	return result;
+	result = LTNSTermCreate( &subject, "true", 4, LTNS_BOOLEAN);
+	result = check_raw( subject, "4:true!", 7 );
+	result = check_payload( subject, "true", 4, LTNS_BOOLEAN );
+	return result == 0;
 }
 
 int test_value_bool_false()
 {
 	int result = LTNSTermDestroy( subject );
-	result && (result = LTNSTermCreate( &subject, "false", 5, LTNS_BOOLEAN));
-	result && (result = check_raw( subject, "5:false!", 8 ));
-	result && (result = check_payload( subject, "false", 5, LTNS_BOOLEAN ));
-	return result;
+	result = LTNSTermCreate( &subject, "false", 5, LTNS_BOOLEAN);
+	result = check_raw( subject, "5:false!", 8 );
+	result = check_payload( subject, "false", 5, LTNS_BOOLEAN );
+	return result == 0;
 }
 
 int test_value_null()
 {
 	int result = LTNSTermDestroy( subject );
-	result && (result = LTNSTermCreate( &subject, "", 0, LTNS_NULL));
-	result && (result = check_raw( subject, "0:~", 3 ));
-	result && (result = check_payload( subject, "", 0, LTNS_NULL ));
-	return result;
+	assert( 0 == (result = LTNSTermCreate( &subject, NULL, 0, LTNS_NULL) ));
+	assert( 0 == (result = check_raw( subject, "0:~", 3 )));
+	assert( 0 == (result = check_payload( subject, NULL, 0, LTNS_NULL )));
+	return result == 0;
 }
 
 int test_value_list()
 {
 	int result = LTNSTermDestroy( subject );
-	result && (result = LTNSTermCreate( &subject, "5:Hello,5:World,", 16, LTNS_LIST));
-	result && (result = check_raw( subject, "16:5:Hello,5:World,]", 20 ));
-	result && (result = check_payload( subject, "5:Hello,5:World,", 16, LTNS_LIST ));
-	return result;
+	assert( 0 == (result = LTNSTermCreate( &subject, "5:Hello,5:World,", 16, LTNS_LIST)));
+	assert( 0 == (result = check_raw( subject, "16:5:Hello,5:World,]", 20 )));
+	assert( 0 == (result = check_payload( subject, "5:Hello,5:World,", 16, LTNS_LIST )));
+	return result == 0;
 }
 
 int test_value_dictionary()
 {
 	int result = LTNSTermDestroy( subject );
-	result && (result = LTNSTermCreate( &subject, "3:key,5:value,", 14, LTNS_DICTIONARY));
-	result && (result = check_raw( subject, "13:3:key,5:value,]", 18 ));
-	result && (result = check_payload( subject, "3:key,5:value,", 14, LTNS_DICTIONARY));
-	return result;
+	assert( 0 == (result = LTNSTermCreate( &subject, "3:key,5:value,", 14, LTNS_DICTIONARY)));
+	assert( 0 == (result = check_raw( subject, "13:3:key,5:value,]", 18 )));
+	assert( 0 == (result = check_payload( subject, "3:key,5:value,", 14, LTNS_DICTIONARY)));
+	return result == 0;
 }
 
 int test_value_undefined()
 {
 	// negative check : it is expected to fail!
 	int result = LTNSTermDestroy( subject );
-	result && (result = LTNSTermCreate( &subject, "foo", 23, LTNS_STRING)); // correct type, incorect length
-	!result && (result = LTNSTermCreate( &subject, "foo", 3, LTNS_UNDEFINED)); // correct string, but incorrect type
-	return !result;
+	assert( 0 != (result = LTNSTermCreate( &subject, "foo", 3, LTNS_UNDEFINED))); // correct string, but incorrect type
+	return result != 0;
 }
 
 int test_value_copy()
@@ -191,10 +196,10 @@ int test_value_copy()
 	char *payload = "foo";
 
 	LTNSTerm *copy = NULL;
-	LTNSTermCreate( &copy, payload, 3, LTNS_STRING);
+	assert( 0 == (LTNSTermCreate( &copy, payload, 3, LTNS_STRING) ));
 
 	char* returned_payload = NULL;
-	LTNSTermGetPayload( copy, &returned_payload, NULL, NULL );
+	assert( 0 == (LTNSTermGetPayload( copy, &returned_payload, NULL, NULL )) );
 
 	return payload != returned_payload;
 }
@@ -204,7 +209,7 @@ int test_value_nested()
 	char *data = "3:foo,";
 
 	LTNSTerm *nested = NULL;
-	LTNSTermCreateNested( &nested, data, 6);
+	assert( 0 == LTNSTermCreateNested( &nested, data, 6) );
 
 	return data == nested->raw_data;
 }
@@ -213,8 +218,8 @@ int test_value_null_bytes()
 {
 	char *data = "\061\061\000\061\061"; // store a string containing NULL-Bytes
 	int result = LTNSTermDestroy( subject );
-	result && (result = LTNSTermCreate( &subject, data, 5, LTNS_STRING ));
-	return result && check_payload( subject, "aa\000aa", 5, LTNS_STRING );
+	result = LTNSTermCreate( &subject, data, 5, LTNS_STRING );
+	return result == 0 && check_payload( subject, "aa\000aa", 5, LTNS_STRING );
 }
 
 int test_value_get_with_null_arguments()
@@ -222,6 +227,16 @@ int test_value_get_with_null_arguments()
 	// getter test with unset output parameters
 	char* payload = NULL;
 	int result = LTNSTermGetPayload( subject, &payload, NULL, NULL );
-	return result && strcmp(payload, "foo");
+	return result == 0 && strcmp(payload, "foo") == 0;
 }
 
+int test_count_digits()
+{
+	assert( count_digits(  1) == 1 );
+	assert( count_digits( 10) == 2 );
+	assert( count_digits(100) == 3 );
+	assert( count_digits( 0 ) == 1 );
+	assert( count_digits(-1 ) == 0 ); // error case
+	assert( count_digits(-0 ) == 1 );
+	return 1;
+}

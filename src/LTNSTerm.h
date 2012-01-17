@@ -6,7 +6,7 @@
 // independend of strinrepresentaion, this term uses a length
 typedef struct 
 {
-	int raw_length;
+	size_t raw_length;
 	char *raw_data;
 } LTNSTerm;
 
@@ -18,7 +18,7 @@ typedef enum
 	LTNS_BOOLEAN   = '!',
 	LTNS_NULL      = '~',
 	LTNS_LIST      = ']',
-	LTNS_DICTIONARY= '}'
+	LTNS_DICTIONARY= '}',
 } LTNSType;
 
 int LTNSTermCreate( LTNSTerm **term, char *payload, size_t payload_length, LTNSType type );
@@ -34,5 +34,8 @@ int LTNSTermGetPayloadLength( LTNSTerm *term, size_t *length );
 int LTNSTermGetPayloadType( LTNSTerm *term, LTNSType *type );
 
 LTNSType LTNSTermGetType( LTNSTerm *term );
+
+// Utilities
+int count_digits( int number );
 
 #endif//__LTNSTERM_H___
