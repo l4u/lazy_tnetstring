@@ -6,7 +6,7 @@
 #include "LTNSTerm.h"
 #include "LTNSDataAccess.h"
 
-#define min(a,b) ((a) < (b) ? a : b)
+#include "test_suite.h"
 
 // define tests
 int test_create_non_compliant();
@@ -40,14 +40,6 @@ int test_set_nested();
 int test_set_known_null();
 int test_set_unknown_null();
 int test_set_nested_null();
-
-// use tests
-typedef int (*test_function)();
-
-typedef struct {
-	test_function function;
-	const char description[128];
-} test_case;
 
 // TODO: strcmp to bcmp, payload not null terminated! also check that LTNSGetPayloadLength is correct!
 
@@ -87,78 +79,6 @@ test_case tests[] =
 	{test_set_nested_null, "set a known nested key's value to null"}
 };
 	
-// main function starting the test suite
-int main(int argc, char **argv)
-{
-	int starting_test = 0;
-	int last_failed_test = 0;
-	int *failed_tests;
-	int test_id, failed_test;
-	
-	// create array for saving failed tests
-	int test_count = sizeof(tests)/sizeof(test_case);
-
-	switch (argc)
-	{
-		case 1:
-			break;
-		case 3: 
-			test_count = min(test_count, atoi(argv[2])+1);
-		case 2:
-			starting_test = atoi(argv[1]);
-			break;
-		default:
-			fprintf(stderr, "usage %s [FIRST_TEST] [LAST_TEST]\n", argv[0]);
-			return -1;
-			break;
-	}
-
-	failed_tests = (int*)malloc(sizeof(int) * test_count);
-
-	if (starting_test < test_count) 
-	{
-		printf("Testing: ");
-	}
-	else
-	{
-		printf("No tests selected, exiting.\n");
-	}
-
-	// loop through all tests
-	for (test_id = starting_test; test_id < test_count; ++test_id)
-	{
-		test_case test = tests[test_id];
-		if (!test.function())
-		{
-			printf("\e[31mF\e[m", test_id);
-			failed_tests[last_failed_test++] = test_id;
-		}
-		else
-		{
-			printf("\e[32m.\e[m", test_id);
-		}
-
-		fflush(stdout);
-	}
-
-	// print all failed tests
-	if (last_failed_test != 0)
-	{
-		// display all failed tests
-		printf("\n\nFollowing tests failed:\n");
-		for (failed_test = 0; failed_test < last_failed_test; ++failed_test)
-		{
-			int id = failed_tests[failed_test];
-			printf("\t%d: %s\n", id, tests[id].description);
-		}
-	}
-	printf("\n");
-
-	// cleanup
-	free(failed_tests);
-	return last_failed_test;
-}
-
 int test_create_non_compliant()
 {
 	LTNSDataAccess *data_access = NULL;

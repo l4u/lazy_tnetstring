@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "LTNSTerm.h"
+#include "test_suite.h"
 
 #define min(a,b) ((a) < (b) ? a : b)
 
@@ -31,14 +32,6 @@ int test_value_undefined();
 int test_value_null_bytes();
 int test_value_get_with_null_arguments();
 
-// use tests
-typedef int (*test_function)();
-
-typedef struct {
-	test_function function;
-	const char description[128];
-} test_case;
-
 test_case tests[] = 
 {
 	/*  0 */ {test_new, "#new"},
@@ -57,84 +50,7 @@ test_case tests[] =
 	/* 10 */ {test_value_get_with_null_arguments, "value containing null bytes" },
 };
 
-// main function starting the test suite
-int main( int argc, char **argv)
-{
-	int starting_test = 0;
-	
-	// create array for saving failed tests
-	int test_count = sizeof(tests)/sizeof(test_case);
-
-	switch( argc )
-	{
-		case 1:
-			break;
-
-		case 3: 
-			test_count = min( test_count, atoi(argv[2])+1);
-		case 2:
-			starting_test = atoi(argv[1]);
-			break;
-
-		default:
-			fprintf(stderr, "usage %s [FIRST_TEST] [LAST_TEST]\n", argv[0] );
-			return -1;
-			break;
-	}
-
-	int *failed_tests = (int*)malloc(sizeof(int) * test_count);
-	int last_failed_test = 0;
-
-	if( starting_test < test_count && starting_test >= 0 && test_count >= 0)  
-	{
-		printf("\nTesting: ");
-	}
-	else
-	{
-		printf("No tests selected, exiting.\n");
-		return 1;
-	}
-
-	// loop through all tests
-	for(int test_id = starting_test; test_id < test_count; ++test_id)
-	{
-		setup_test();
-		test_case test = tests[test_id];
-		
-		int result = test.function();
-		if( !result )
-		{
-			printf( "\e[31mF\e[m", test_id );
-			failed_tests[last_failed_test++] = test_id;
-		}
-		else
-		{
-			printf( "\e[32m.\e[m", test_id );
-		}
-		cleanup_test();
-
-		fflush(stdout);
-	}
-
-	// print all failed tests
-	if( last_failed_test != 0)
-	{
-		// display all failed tests
-		printf("\n\nFollowing tests failed:\n");
-		for( int failed_test = 0; failed_test < last_failed_test; ++failed_test )
-		{
-			int id = failed_tests[failed_test];
-			printf("\t%3d: %s\n", id, tests[id].description );
-		}
-	}
-	printf("\n");
-
-	// cleanup
-	free(failed_tests);
-	return last_failed_test;
-}
-
-// helüer functions
+// helper functions
 static int check_raw( LTNSTerm *term, const char* expected_raw, size_t expected_raw_length )
 {
 	return term &&
