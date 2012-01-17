@@ -214,10 +214,12 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 
 LTNSError LTNSDataAccessAsTerm(LTNSDataAccess* data_access, LTNSTerm** term)
 {
+	LTNSError error;
 	if (!data_access || !term)
 		return INVALID_ARGUMENT;
 
-	error = LTNSCreateNestedTerm(term, data_access->tnetstring, data_access->length);
+	error = LTNSTermCreateNested(term, data_access->tnetstring, data_access->length);
+	RETURN_VAL_IF(error)
 
 	return 0;
 }
@@ -275,7 +277,7 @@ static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const 
 			RETURN_VAL_IF(error);
 			term_raw_data = data_access->tnetstring + offset;
 			term_raw_len = (payload - term_raw_data) + payload_len + 1;
-			error = LTNSCreateNestedTerm(term, term_raw_data, term_raw_len)
+			error = LTNSTermCreateNested(term, term_raw_data, term_raw_len);
 			RETURN_VAL_IF(error);
 			return 0;
 		}
