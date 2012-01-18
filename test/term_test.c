@@ -67,9 +67,9 @@ static int check_raw( LTNSTerm *term, const char* expected_raw, size_t expected_
 	size_t length;
 
 	ret = LTNSTermGetTNetstring(term, &tnestring, &length);
-	return ret &&
+	return !((ret == 0) &&
 		(length == expected_raw_length) &&
-		(bcmp(tnestring, expected_raw, MIN(length, expected_raw_length)));
+		(bcmp(tnestring, expected_raw, length)));
 }
 
 static int check_payload( LTNSTerm *term, const char* expected_payload, size_t expected_length, LTNSType expected_type )
@@ -85,7 +85,7 @@ static int check_payload( LTNSTerm *term, const char* expected_payload, size_t e
 		(length == expected_length) && 
 		(type == expected_type) &&
 		(seperate_type == expected_type) &&
-		(bcmp(payload, expected_payload, MIN(length, expected_length)) == 0));
+		(bcmp(payload, expected_payload, length) == 0));
 }
 
 // space for global variables
