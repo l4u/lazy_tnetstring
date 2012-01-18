@@ -215,6 +215,7 @@ LTNSError LTNSDataAccessGet(LTNSDataAccess* data_access, const char* key, LTNSTe
 
 LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTerm* term)
 {
+	return 0;
 }
 
 LTNSError LTNSDataAccessAsTerm(LTNSDataAccess* data_access, LTNSTerm** term)
@@ -286,15 +287,15 @@ static LTNSError LTNSDataAccessFindKeyPosition(LTNSDataAccess* data_access, cons
 		RETURN_VAL_IF(LTNSTermDestroy(term));
 		RETURN_VAL_IF(error);
 
-		*next = payload + payload_len + 1;
 		/* Check the parsed key matches search key */
 		if (!bcmp(payload, key, MIN(key_len, payload_len)))
 		{
 			*position = tnetstring;
+			*next = payload + payload_len + 1;
 			return 0;
 		}
 		/* Skip key */
-		tnetstring = next;
+		tnetstring = payload + payload_len + 1;
 		if (tnetstring > end)
 			break;
 		/* Get length of value term */
@@ -313,7 +314,6 @@ static LTNSError LTNSDataAccessFindKeyPosition(LTNSDataAccess* data_access, cons
 static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const char* key, LTNSTerm** term)
 {
 	LTNSError error;
-	size_t term_len = 0;
 	char* key_position = NULL;
 	char* val_position = NULL;
 

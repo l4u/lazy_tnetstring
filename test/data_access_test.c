@@ -162,7 +162,7 @@ static int set_key(LTNSDataAccess* data_access, const char* key, LTNSTerm* term)
 	return TRUE;
 }
 
-static int set_and_check(LTNSDataAccess* data_access, const char* key, const char* payload, size_t length, LTNSType type)
+static int set_and_check(LTNSDataAccess* data_access, const char* key, char* payload, size_t length, LTNSType type)
 {
 	LTNSTerm *term = NULL, *after_set = NULL;
 
@@ -204,7 +204,6 @@ int test_create_non_hash_toplevel()
 int test_create_empty()
 {
 	LTNSDataAccess *data_access = NULL;
-	LTNSError error;
 	const char* tnetstring = "0:}";
 
 	/* for an empty hash */
@@ -220,7 +219,6 @@ int test_create_empty()
 int test_create()
 {
 	LTNSDataAccess *data_access = NULL;
-	LTNSError error;
 	const char* tnetstring = "32:3:key,5:value,7:another,5:value,}";
 
 	/* for a hash */
@@ -316,7 +314,6 @@ int test_get_known()
 {
 	LTNSDataAccess *data_access = NULL;
 	LTNSTerm *term = NULL;
-	LTNSError error;
 	const char* tnetstring = "12:3:foo,3:bar,}";
 
 	/* for known keys */
@@ -331,7 +328,6 @@ int test_get_nested()
 {
 	LTNSDataAccess *data_access = NULL, *inner;
 	LTNSTerm *term = NULL;
-	LTNSError error;
 	const char* tnetstring = "28:5:outer,16:5:inner,5:value,}}";
 
 	/* for nested hash */
@@ -368,9 +364,7 @@ int test_get_unknown_nested()
 int test_set_same_length()
 {
 	LTNSDataAccess *data_access = NULL;
-	LTNSTerm *term = NULL;
 	
-	LTNSError error;
 	const char* tnetstring = "12:3:foo,3:bar,}";
 
 	/* whithout changing length */
@@ -383,8 +377,6 @@ int test_set_same_length()
 int test_set_longer()
 {
 	LTNSDataAccess *data_access = NULL;
-	LTNSTerm *term = NULL;
-	LTNSError error;
 	const char* tnetstring = "12:3:foo,3:bar,}";
 
 	/* when changing the length of top-level key */
@@ -397,8 +389,6 @@ int test_set_longer()
 int test_set_shorter()
 {
 	LTNSDataAccess *data_access = NULL;
-	LTNSTerm *term = NULL;
-	LTNSError error;
 	const char* tnetstring = "12:3:foo,6:foobar,}";
 
 	/* when changing the length of top-level key */
@@ -413,7 +403,6 @@ int test_set_nested_same_length()
 {
 	LTNSDataAccess *data_access = NULL, *inner;
 	LTNSTerm *term = NULL;
-	LTNSError error;
 	const char* tnetstring = "24:5:outer,12:3:foo,3:bar,}}";
 
 	/* when changing a nested key's value without changing the length */
@@ -429,7 +418,6 @@ int test_set_nested_longer()
 {
 	LTNSDataAccess *data_access = NULL, *inner;
 	LTNSTerm *term = NULL;
-	LTNSError error;
 	const char* tnetstring = "24:5:outer,12:3:foo,3:bar,}}";
 
 	/* when changing the length of a nested key's value */
@@ -445,7 +433,6 @@ int test_set_nested_shorter()
 {
 	LTNSDataAccess *data_access = NULL, *inner;
 	LTNSTerm *term = NULL;
-	LTNSError error;
 	const char* tnetstring = "24:5:outer,12:3:foo,6:foobar,}}";
 
 	/* when changing the length of a nested key's value */
@@ -461,7 +448,6 @@ int test_set_multiple()
 {
 	LTNSDataAccess *data_access = NULL, *inner;
 	LTNSTerm *term = NULL;
-	LTNSError error;
 	const char* tnetstring = "36:3:foo,3:bar,5:outer,12:3:foo,3:bar,}}";
 
 	/* when changing multiple values on different levels */
@@ -479,7 +465,6 @@ int test_set_multiple_scope()
 {
 	LTNSDataAccess *data_access = NULL, *inner;
 	LTNSTerm *term = NULL;
-	LTNSError error;
 
 	/* when changing multiple values on different levels while re-using scoped data_accesses */
 	const char* tnetstring = "64:4:key1,3:bar,5:outer,26:4:key1,3:bar,4:key2,3:bar,}4:key2,3:bar,}";
@@ -500,7 +485,6 @@ int test_set_multiple_scope_interleaved()
 {
 	LTNSDataAccess *data_access = NULL, *inner;
 	LTNSTerm *term = NULL;
-	LTNSError error;
 
 	/* when changing multiple interleaved values on different levels while re-using scoped data_accesses */
 	const char* tnetstring = "64:4:key1,3:bar,5:outer,26:4:key1,3:bar,4:key2,3:bar,}4:key2,3:bar,}";
@@ -551,8 +535,6 @@ int test_set_invalidating_scope()
 int test_set_empty()
 {
 	LTNSDataAccess *data_access = NULL;
-	LTNSTerm *term = NULL;
-	LTNSError error;
 	const char* tnetstring = "0:}";
 
 	/* when updating a non-existing key in an empty hash */
@@ -566,7 +548,6 @@ int test_set_non_empty()
 {
 	LTNSDataAccess *data_access = NULL;
 	LTNSTerm *term = NULL;
-	LTNSError error;
 	const char* tnetstring = "16:4:key1,6:value1,}";
 
 	/* when updating a non-existing key to a non-empty hash */
@@ -603,6 +584,8 @@ int test_set_unknown_null()
 	error = LTNSDataAccessGet(data_access, "foo", &term);
 	assert(error == KEY_NOT_FOUND);
 	assert(term == NULL);
+
+	return 1;
 }
 
 int test_set_nested_null()

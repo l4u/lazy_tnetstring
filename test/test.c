@@ -58,12 +58,12 @@ int main( int argc, char **argv)
                 int result = test.function();
                 if( !result )
                 {
-                        printf( "\e[31mF\e[m", test_id );
+                        printf( "\e[31mF\e[m" );
                         failed_tests[last_failed_test++] = test_id;
                 }
                 else
                 {
-                        printf( "\e[32m.\e[m", test_id );
+                        printf( "\e[32m.\e[m" );
                 }
                 cleanup_test();
 
