@@ -1,4 +1,4 @@
-include_HEADERS = LTNS.h LTNSDataAccess.h LTNSTerm.h
+include_HEADERS = LTNS.h LTNSDataAccess.h LTNSTerm.h LTNSCommon.h
 
 lib_LTLIBRARIES = libLTNS.la
 libLTNS_la_SOURCES = LTNSTerm.c LTNSDataAccess.c

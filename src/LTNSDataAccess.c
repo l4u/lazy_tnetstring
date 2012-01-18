@@ -2,17 +2,11 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define FALSE 0
-#define TRUE (!FALSE)
 #define MIN_HASH_LENGTH 3 // "0:}"
-#define MAX_PREFIX_LENGTH 10
-#define MIN(a,b) ((a) < (b) ? a : b)
-#define RETURN_VAL_IF(a) if (a) return a;
 
 static LTNSError LTNSDataAccessCreatePrivate(LTNSDataAccess** data_access, const char* tnetstring, size_t length, int is_root);
 static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const char* key, LTNSTerm** term);
 static LTNSError LTNSDataAccessAddChild(LTNSDataAccess* data_access, LTNSDataAccess* child);
-static LTNSError LTNSDataAccessParseFirstTerm(const char* tnetstring, char** payload, size_t* payload_length, size_t* term_length);
 static LTNSError LTNSDataAccessFindKeyPosition(LTNSDataAccess* data_access, const char* key, char** position, char** next);
 
 struct _LTNSDataAccess
@@ -178,14 +172,21 @@ LTNSError LTNSDataAccessOffset(LTNSDataAccess* data_access, size_t* offset)
 
 LTNSError LTNSDataAccessTermOffset(LTNSDataAccess* data_access, LTNSTerm* term, size_t* offset)
 {
+	LTNSError error;
+	char* nested_tnetstring = NULL;
+
 	if (!data_access || !term || !offset)
 		return INVALID_ARGUMENT;
-	if (term->raw_data < data_access->tnetstring)
+
+	error = LTNSTermGetTNetstring(term, &nested_tnetstring, NULL);
+	RETURN_VAL_IF(error);
+
+	if (nested_tnetstring < data_access->tnetstring)
 		return INVALID_ARGUMENT;
-	if (term->raw_data >= (data_access->tnetstring + data_access->length))
+	if (nested_tnetstring >= (data_access->tnetstring + data_access->length))
 		return INVALID_ARGUMENT;
 
-	*offset = term->raw_data - data_access->tnetstring;
+	*offset = nested_tnetstring - data_access->tnetstring;
 	return 0;
 }
 
@@ -208,6 +209,7 @@ LTNSError LTNSDataAccessGet(LTNSDataAccess* data_access, const char* key, LTNSTe
 		return KEY_NOT_FOUND;
 	}
 
+	*term = NULL;
 	return LTNSDataAccessFindValueTerm(data_access, key, term);
 }
 
@@ -221,7 +223,7 @@ LTNSError LTNSDataAccessAsTerm(LTNSDataAccess* data_access, LTNSTerm** term)
 	if (!data_access || !term)
 		return INVALID_ARGUMENT;
 
-	error = LTNSTermCreateNested(term, data_access->tnetstring, data_access->length);
+	error = LTNSTermCreateNested(term, data_access->tnetstring);
 	RETURN_VAL_IF(error)
 
 	return 0;
@@ -260,34 +262,48 @@ static LTNSError LTNSDataAccessAddChild(LTNSDataAccess* data_access, LTNSDataAcc
 static LTNSError LTNSDataAccessFindKeyPosition(LTNSDataAccess* data_access, const char* key, char** position, char** next)
 {
 	LTNSError error = 0;
+	LTNSTerm* term;
 	char* payload;
 	size_t payload_len;
 	size_t key_len = strlen(key);
 	size_t term_len;
 	char* tnetstring;
-	const char* end = data_access->tnetstring + data_access->length;
+	const char* end = data_access->tnetstring + data_access->length - 1;
+
 
 	/* Skip the tnetstring pointer ahead of the prefix to the payload */
-	error = LTNSDataAccessParseFirstTerm(data_access->tnetstring, &tnetstring, NULL, NULL);
+	error = LTNSTermCreateNested(&term, data_access->tnetstring);
+	RETURN_VAL_IF(error);
+	error = LTNSTermGetPayload(term, &tnetstring, NULL, NULL);
+	RETURN_VAL_IF(LTNSTermDestroy(term));
+	RETURN_VAL_IF(error);
 
 	while (!error && tnetstring <= end)
 	{
-		error = LTNSDataAccessParseFirstTerm(tnetstring, &payload, &payload_len, &term_len);
+		error = LTNSTermCreateNested(&term, tnetstring);
+		RETURN_VAL_IF(error);
+		error = LTNSTermGetPayload(term, &payload, &payload_len, NULL);
+		RETURN_VAL_IF(LTNSTermDestroy(term));
 		RETURN_VAL_IF(error);
 
+		*next = payload + payload_len + 1;
 		/* Check the parsed key matches search key */
 		if (!bcmp(payload, key, MIN(key_len, payload_len)))
 		{
 			*position = tnetstring;
-			*next = tnetstring + term_len;
 			return 0;
 		}
 		/* Skip key */
-		tnetstring += term_len;
+		tnetstring = next;
 		if (tnetstring > end)
 			break;
-		/* If the parse does not match skip over it's value */
-		error = LTNSDataAccessParseFirstTerm(tnetstring, NULL, NULL, &term_len);
+		/* Get length of value term */
+		error = LTNSTermCreateNested(&term, tnetstring);
+		RETURN_VAL_IF(error);
+		error = LTNSTermGetTNetstring(term, NULL, &term_len);
+		RETURN_VAL_IF(LTNSTermDestroy(term));
+		RETURN_VAL_IF(error);
+		/* Skip key's value */
 		tnetstring += term_len;
 	}
 
@@ -304,43 +320,9 @@ static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const 
 	/* Find key */
 	error = LTNSDataAccessFindKeyPosition(data_access, key, &key_position, &val_position);
 	RETURN_VAL_IF(error);
-	/* Parse the next term (the key's value) */
-	error = LTNSDataAccessParseFirstTerm(val_position, NULL, NULL, &term_len);
-	RETURN_VAL_IF(error);
-	error = LTNSTermCreateNested(term, val_position, term_len);
+	error = LTNSTermCreateNested(term, val_position);
 	RETURN_VAL_IF(error);
 
 	return 0;
 }
 
-// FIXME: User LTNSTermCreateNested instead?
-static LTNSError LTNSDataAccessParseFirstTerm(const char* tnetstring,
-		char** payload,
-		size_t* payload_length,
-		size_t* term_length)
-{
-	char* colon;
-	size_t prefix = 0;
-
-	if (payload)
-		*payload = NULL;
-
-	prefix = (size_t)strtol(tnetstring, &colon, 10);
-	if (colon == tnetstring)
-		return INVALID_TNETSTRING;
-	if (*colon != ':' || *colon == '\0')
-		return INVALID_TNETSTRING;
-	if (colon > (tnetstring + MAX_PREFIX_LENGTH))
-		return INVALID_TNETSTRING;
-
-	/* The length of the prefix + COLON + payload + TYPE */
-	if (term_length)
-		*term_length = (colon - tnetstring) + prefix + 2;
-	if (payload_length)
-		*payload_length = prefix;
-	/* Pointer to the begining of the payload string */
-	if (payload)
-		*payload = colon + 1;
-
-	return 0;
-}

@@ -62,9 +62,14 @@ test_case tests[] =
 // helper functions
 static int check_raw( LTNSTerm *term, const char* expected_raw, size_t expected_raw_length )
 {
-	return term &&
-		(term->raw_length == expected_raw_length) &&
-		(strncmp(term->raw_data, expected_raw, expected_raw_length));
+	int ret;
+	char* tnestring;
+	size_t length;
+
+	ret = LTNSTermGetTNetstring(term, &tnestring, &length);
+	return ret &&
+		(length == expected_raw_length) &&
+		(bcmp(tnestring, expected_raw, MIN(length, expected_raw_length)));
 }
 
 static int check_payload( LTNSTerm *term, const char* expected_payload, size_t expected_length, LTNSType expected_type )
@@ -76,11 +81,11 @@ static int check_payload( LTNSTerm *term, const char* expected_payload, size_t e
 	LTNSType seperate_type = LTNS_UNDEFINED;
 	result |= LTNSTermGetPayloadType( term, &seperate_type );
 	
-	return result == 0 && 
+	return !(result == 0 && 
 		(length == expected_length) && 
 		(type == expected_type) &&
 		(seperate_type == expected_type) &&
-		(strcmp(payload, expected_payload) == 0);
+		(bcmp(payload, expected_payload, MIN(length, expected_length)) == 0));
 }
 
 // space for global variables
@@ -89,22 +94,26 @@ LTNSTerm *subject;
 // setup all tests
 void setup_test()
 {
-	subject = (LTNSTerm*)calloc(1, sizeof(LTNSTerm) );
-	assert( subject != NULL );
 	assert( 0 == LTNSTermCreate( &subject, "foo", 3, LTNS_STRING) );
+	assert( subject != NULL );
 }
 
 void cleanup_test()
 {
-	assert( 0 == LTNSTermDestroy( subject ) );
-	free(subject);
+	if (subject)
+	{
+		assert( 0 == LTNSTermDestroy( subject ) );
+		subject = NULL;
+	}
 }
 
 // declare tests
 int test_new()
 {
-	char *data = subject->raw_data;
-	size_t length = subject->raw_length;
+	char *data; 
+	size_t length;
+
+	LTNSTermGetTNetstring(subject, &data, &length);
 
 	// raw data check
 	assert( !data || length != 6 || strcmp( data, "foo" ) != 0 );
@@ -126,6 +135,7 @@ int test_new_invalid()
 	LTNSTermDestroy( subject );
 	int result = LTNSTermCreate( &subject, NULL, 4711, LTNS_STRING);
 	assert( 0 != (result = LTNSTermCreate( &subject, "foo", 3, LTNS_UNDEFINED)));
+	subject = NULL;
 	return result != 0;
 }
 
@@ -188,6 +198,7 @@ int test_value_undefined()
 	// negative check : it is expected to fail!
 	int result = LTNSTermDestroy( subject );
 	assert( 0 != (result = LTNSTermCreate( &subject, "foo", 3, LTNS_UNDEFINED))); // correct string, but incorrect type
+	subject = NULL;
 	return result != 0;
 }
 
@@ -207,19 +218,21 @@ int test_value_copy()
 int test_value_nested()
 {
 	char *data = "3:foo,";
+	char *nested_data;
 
 	LTNSTerm *nested = NULL;
-	assert( 0 == LTNSTermCreateNested( &nested, data, 6) );
+	assert( 0 == LTNSTermCreateNested( &nested, data) );
 
-	return data == nested->raw_data;
+	LTNSTermGetTNetstring(subject, &nested_data, NULL);
+	return bcmp(data, nested_data, 6) == 0;
 }
 
 int test_value_null_bytes()
 {
-	char *data = "\061\061\000\061\061"; // store a string containing NULL-Bytes
+	char *data = "aa\000\061\061"; // store a string containing NULL-Bytes
 	int result = LTNSTermDestroy( subject );
 	result = LTNSTermCreate( &subject, data, 5, LTNS_STRING );
-	return result == 0 && check_payload( subject, "aa\000aa", 5, LTNS_STRING );
+	return result == 0 && check_payload( subject, "aa\00011", 5, LTNS_STRING ) == 0;
 }
 
 int test_value_get_with_null_arguments()
@@ -227,16 +240,20 @@ int test_value_get_with_null_arguments()
 	// getter test with unset output parameters
 	char* payload = NULL;
 	int result = LTNSTermGetPayload( subject, &payload, NULL, NULL );
-	return result == 0 && strcmp(payload, "foo") == 0;
+	return result == 0 && bcmp(payload, "foo", 3) == 0;
 }
 
+size_t count_digits(int number)
+{
+	return number == 0 ? 1 : (size_t)(floor(log10(number)) + 1);
+}
 int test_count_digits()
 {
 	assert( count_digits(  1) == 1 );
 	assert( count_digits( 10) == 2 );
 	assert( count_digits(100) == 3 );
 	assert( count_digits( 0 ) == 1 );
-	assert( count_digits(-1 ) == 0 ); // error case
+	//assert( count_digits(-1 ) == 0 ); // error case (nan)
 	assert( count_digits(-0 ) == 1 );
 	return 1;
 }

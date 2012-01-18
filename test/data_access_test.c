@@ -41,7 +41,7 @@ int test_set_known_null();
 int test_set_unknown_null();
 int test_set_nested_null();
 
-// TODO: strcmp to bcmp, payload not null terminated! also check that LTNSTermGetPayloadLength is correct!
+// TODO: bcmp to bcmp, payload not null terminated! also check that LTNSTermGetPayloadLength is correct!
 
 test_case tests[] = 
 {
@@ -98,7 +98,7 @@ int test_create_non_compliant()
 	assert(error == INVALID_TNETSTRING);
 	assert(data_access == NULL);
 
-	return 0;
+	return 1;
 }
 
 int test_create_non_hash_toplevel()
@@ -112,7 +112,7 @@ int test_create_non_hash_toplevel()
 	assert(error == UNSUPPORTED_TOP_LEVEL_DATA_STRUCTURE);
 	assert(data_access == NULL);
 
-	return 0;
+	return 1;
 }
 
 int test_create_empty()
@@ -129,7 +129,7 @@ int test_create_empty()
 	assert(!LTNSDataAccessOffset(data_access, &offset));
 	assert(offset == 0);
 	
-	return 0;
+	return 1;
 }
 
 int test_create()
@@ -146,7 +146,7 @@ int test_create()
 	assert(!LTNSDataAccessOffset(data_access, &offset));
 	assert(offset == 0);
 
-	return 0;
+	return 1;
 }
 
 int test_create_with_parent()
@@ -174,7 +174,7 @@ int test_create_with_parent()
 	assert(first->child == data_access);
 	assert(first->next == NULL);
 
-	return 0;
+	return 1;
 }
 
 int test_create_with_scope()
@@ -194,7 +194,7 @@ int test_create_with_scope()
 	assert(!strcmp(scope, "scope"));
  
 
-	return 0;
+	return 1;
 }
 
 
@@ -225,7 +225,7 @@ int test_get_unknown()
 	error = LTNSDataAccessGet(data_access, "foo", &term);
 	assert(term == NULL);
 
-	return 0;
+	return 1;
 }
 
 int test_get_known()
@@ -247,9 +247,9 @@ int test_get_known()
 	char* payload = NULL;
 	size_t length = 0;
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
-	assert(!strcmp(payload, "bar"));
+	assert(!bcmp(payload, "bar", 3));
 
-	return 0;
+	return 1;
 }
 
 int test_get_nested()
@@ -267,21 +267,22 @@ int test_get_nested()
 	LTNSType type = LTNS_UNDEFINED;
 	char* payload = NULL;
 	size_t length = 0;
-	assert (LTNSTermGetPayload(term, &payload, &length, &type));
+	assert(0 ==LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_DICTIONARY);
 
 	size_t offset = 0;
 	LTNSDataAccessTermOffset(data_access, term, &offset);
-	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
+	LTNSTermGetTNetstring(term, NULL, &length);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, length);
 	assert(inner != NULL);
 	error = LTNSDataAccessGet(inner, "inner", &term);
 
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(length == 5);
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "value"));
+	assert(!bcmp(payload, "value", 5));
 
-	return 0;
+	return 1;
 }
 
 int test_get_unknown_nested()
@@ -303,12 +304,14 @@ int test_get_unknown_nested()
 
 	size_t offset = 0;
 	LTNSDataAccessTermOffset(data_access, term, &offset);
-	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
+	LTNSTermGetTNetstring(term, NULL, &length);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, length);
 	assert(inner != NULL);
 	error = LTNSDataAccessGet(inner, "non-existing-key", &term);
 	assert(term == NULL);
+	assert(error == KEY_NOT_FOUND);
 
-	return 0;
+	return 1;
 }
 
 int test_set_same_length()
@@ -332,9 +335,9 @@ int test_set_same_length()
 	char* payload = NULL;
 	assert(!LTNSTermGetPayload(term, &payload, NULL, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "baz"));
+	assert(!bcmp(payload, "baz", 3));
 
-	return 0;
+	return 1;
 }
 
 int test_set_longer()
@@ -357,9 +360,9 @@ int test_set_longer()
 	char* payload = NULL;
 	assert(!LTNSTermGetPayload(term, &payload, NULL, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "foobar"));
+	assert(!bcmp(payload, "foobar", 6));
 
-	return 0;
+	return 1;
 }
 
 int test_set_shorter()
@@ -382,9 +385,9 @@ int test_set_shorter()
 	char* payload = NULL;
 	assert(!LTNSTermGetPayload(term, &payload, NULL, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "bar"));
+	assert(!bcmp(payload, "bar", 3));
 
-	return 0;
+	return 1;
 }
 
 
@@ -407,7 +410,8 @@ int test_set_nested_same_length()
 
 	size_t offset = 0;
 	LTNSDataAccessTermOffset(data_access, term, &offset);
-	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
+	LTNSTermGetTNetstring(term, NULL, &length);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, length);
 	assert(inner != NULL);
 	LTNSTermCreate(&term, "baz", 3, LTNS_STRING);
 	LTNSDataAccessSet(inner, "foo", term);
@@ -416,9 +420,9 @@ int test_set_nested_same_length()
 	error = LTNSDataAccessGet(inner, "foo", &term);
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "baz"));
+	assert(!bcmp(payload, "baz", 3));
 
-	return 0;
+	return 1;
 }
 
 int test_set_nested_longer()
@@ -440,7 +444,8 @@ int test_set_nested_longer()
 
 	size_t offset = 0;
 	LTNSDataAccessTermOffset(data_access, term, &offset);
-	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
+	LTNSTermGetTNetstring(term, NULL, &length);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, length);
 	assert(inner != NULL);
 	LTNSTermCreate(&term, "foobar", 6, LTNS_STRING);
 	LTNSDataAccessSet(inner, "foo", term);
@@ -449,9 +454,9 @@ int test_set_nested_longer()
 	error = LTNSDataAccessGet(inner, "foo", &term);
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "foobar"));
+	assert(!bcmp(payload, "foobar", 6));
 
-	return 0;
+	return 1;
 }
 
 int test_set_nested_shorter()
@@ -474,7 +479,8 @@ int test_set_nested_shorter()
 
 	size_t offset = 0;
 	LTNSDataAccessTermOffset(data_access, term, &offset);
-	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
+	LTNSTermGetTNetstring(term, NULL, &length);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, length);
 	assert(inner != NULL);
 	LTNSTermCreate(&term, "bar", 3, LTNS_STRING);
 	LTNSDataAccessSet(inner, "foo", term);
@@ -483,9 +489,9 @@ int test_set_nested_shorter()
 	error = LTNSDataAccessGet(inner, "foo", &term);
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "bar"));
+	assert(!bcmp(payload, "bar", 3));
 
-	return 0;
+	return 1;
 }
 
 int test_set_multiple()
@@ -508,7 +514,7 @@ int test_set_multiple()
 	char *payload = NULL;
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "foobar"));
+	assert(!bcmp(payload, "foobar", 6));
 
 	error = LTNSDataAccessGet(data_access, "outer", &term);
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
@@ -516,7 +522,8 @@ int test_set_multiple()
 
 	size_t offset = 0;
 	LTNSDataAccessTermOffset(data_access, term, &offset);
-	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
+	LTNSTermGetTNetstring(term, NULL, &length);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, length);
 	assert(inner != NULL);
 	LTNSTermCreate(&term, "foobar", 6, LTNS_STRING);
 	LTNSDataAccessSet(inner, "foo", term);
@@ -526,9 +533,9 @@ int test_set_multiple()
 	error = LTNSDataAccessGet(inner, "foo", &term);
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "foobar"));
+	assert(!bcmp(payload, "foobar", 6));
 
-	return 0;
+	return 1;
 }
 
 int test_set_multiple_scope()
@@ -551,7 +558,8 @@ int test_set_multiple_scope()
 
 	size_t offset = 0;
 	LTNSDataAccessTermOffset(data_access, term, &offset);
-	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
+	LTNSTermGetTNetstring(term, NULL, &length);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, length);
 	assert(inner != NULL);
 
 	LTNSTermCreate(&term, "foobar", 6, LTNS_STRING);
@@ -565,24 +573,24 @@ int test_set_multiple_scope()
 	error = LTNSDataAccessGet(data_access, "key1", &term);
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "foobar"));
+	assert(!bcmp(payload, "foobar", 6));
 
 	error = LTNSDataAccessGet(data_access, "key2", &term);
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "foobar"));
+	assert(!bcmp(payload, "foobar", 6));
 
 	error = LTNSDataAccessGet(inner, "key1", &term);
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "foobar"));
+	assert(!bcmp(payload, "foobar", 6));
 
 	error = LTNSDataAccessGet(inner, "key2", &term);
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "foobar"));
+	assert(!bcmp(payload, "foobar", 6));
 
-	return 0;
+	return 1;
 }
 
 int test_set_multiple_scope_interleaved()
@@ -606,7 +614,8 @@ int test_set_multiple_scope_interleaved()
 	
 	size_t offset = 0;
 	LTNSDataAccessTermOffset(data_access, term, &offset);
-	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, term->raw_length);
+	LTNSTermGetTNetstring(term, NULL, &length);
+	error = LTNSDataAccessCreateWithParent(&inner, data_access, offset, length);
 	assert(inner != NULL);
 	LTNSTermCreate(&term, "foobar", 6, LTNS_STRING);
 	LTNSDataAccessSet(data_access, "key1", term);
@@ -619,24 +628,24 @@ int test_set_multiple_scope_interleaved()
 	error = LTNSDataAccessGet(data_access, "key1", &term);
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "foobar"));
+	assert(!bcmp(payload, "foobar", 6));
 
 	error = LTNSDataAccessGet(data_access, "key2", &term);
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "foobar"));
+	assert(!bcmp(payload, "foobar", 6));
 
 	error = LTNSDataAccessGet(inner, "key1", &term);
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "foobar"));
+	assert(!bcmp(payload, "foobar", 6));
 
 	error = LTNSDataAccessGet(inner, "key2", &term);
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "foobar"));
+	assert(!bcmp(payload, "foobar", 6));
 
-	return 0;
+	return 1;
 }
 
 int test_set_invalidating_scope()
@@ -660,21 +669,24 @@ int test_set_invalidating_scope()
 	assert(type == LTNS_DICTIONARY);
 	size_t offset = 0;
 	LTNSDataAccessTermOffset(data_access, term, &offset);
-	error = LTNSDataAccessCreateWithParent(&level1, data_access, offset, term->raw_length);
+	LTNSTermGetTNetstring(term, NULL, &length);
+	error = LTNSDataAccessCreateWithParent(&level1, data_access, offset, length);
 	assert(level1 != NULL);
 	error = LTNSDataAccessGet(level1, "level2", &term);
 
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_DICTIONARY);
 	LTNSDataAccessTermOffset(data_access, term, &offset);
-	error = LTNSDataAccessCreateWithParent(&level2, data_access, offset, term->raw_length);
+	LTNSTermGetTNetstring(term, NULL, &length);
+	error = LTNSDataAccessCreateWithParent(&level2, data_access, offset, length);
 	assert(level2 != NULL);
 
 	error = LTNSDataAccessGet(level2, "level3", &term);
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_DICTIONARY);
 	LTNSDataAccessTermOffset(data_access, term, &offset);
-	error = LTNSDataAccessCreateWithParent(&level3, data_access, offset, term->raw_length);
+	LTNSTermGetTNetstring(term, NULL, &length);
+	error = LTNSDataAccessCreateWithParent(&level3, data_access, offset, length);
 	assert(level3 != NULL);
 	
 	error = LTNSDataAccessCreate(&newlevel3, tnet_newlevel3, strlen(tnet_newlevel3));
@@ -686,7 +698,7 @@ int test_set_invalidating_scope()
 	error = LTNSDataAccessGet(level3, "key", &term);
 	assert(error == INVALID_SCOPE);
 
-	return 0;
+	return 1;
 }
 
 int test_set_empty()
@@ -710,9 +722,9 @@ int test_set_empty()
 	size_t length = 0;
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "bar"));
+	assert(!bcmp(payload, "bar", 3));
 
-	return 0;
+	return 1;
 }
 
 int test_set_non_empty()
@@ -736,28 +748,28 @@ int test_set_non_empty()
 	size_t length = 0;
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "value1"));
+	assert(!bcmp(payload, "value1", 6));
 
 	error = LTNSDataAccessGet(data_access, "key2", &term);
 	assert(!error);
 
 	assert(!LTNSTermGetPayload(term, &payload, &length, &type));
 	assert(type == LTNS_STRING);
-	assert(!strcmp(payload, "value2"));
+	assert(!bcmp(payload, "value2", 6));
 
-	return 0;
+	return 1;
 }
 
 int test_set_nested()
 {
 	// TODO: implement
-	return 0;
+	return 1;
 }
 
 int test_set_known_null()
 {
 	// TODO: implement
-	return 0;
+	return 1;
 }
 
 int test_set_unknown_null()
@@ -779,6 +791,6 @@ int test_set_unknown_null()
 int test_set_nested_null()
 {
 	// TODO: implement
-	return 0;
+	return 1;
 }
 

@@ -1,12 +1,11 @@
 #ifndef __LTNSDATAACCESS_H__
 #define __LTNSDATAACCESS_H__
 
+#include "LTNSCommon.h"
 #include "LTNSTerm.h"
 
 struct _LTNSDataAccess;
 typedef struct _LTNSDataAccess LTNSDataAccess;
-
-
 
 typedef struct LTNSChildNode
 {
@@ -14,16 +13,6 @@ typedef struct LTNSChildNode
 	struct LTNSChildNode* next;
 } LTNSChildNode;
 
-
-typedef enum
-{
-	INVALID_TNETSTRING = 1,
-	UNSUPPORTED_TOP_LEVEL_DATA_STRUCTURE,
-	INVALID_SCOPE,
-	OUT_OF_MEMORY,
-	INVALID_ARGUMENT,
-	KEY_NOT_FOUND	
-} LTNSError;
 
 LTNSError LTNSDataAccessCreate(LTNSDataAccess** data_access, const char* tnetstring, size_t length);
 LTNSError LTNSDataAccessCreateWithParent(LTNSDataAccess** data_access, LTNSDataAccess* parent, size_t offset, size_t length);

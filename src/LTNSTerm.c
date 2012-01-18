@@ -2,110 +2,125 @@
 #include <string.h>
 
 #include "LTNSTerm.h"
-#include "LTNSDataAccess.h"
 
-// recursively count numbers, avoiding math.h implementation
-int count_digits( int number )
+struct _LTNSTerm
 {
-	if( number < 10 && number >= 0 )
-	{
-		return 1;
-	}
-	else if(number >= 10 )
-	{
-		return count_digits( number / 10 ) + 1;
-	}
-	else 
-	{	// negative number given
-		return 0;
-	}
-}
+	size_t length;
+	char *tnetstring;
+	char *payload;
+	size_t payload_length;
+	char is_nested;
+};
 
-static int is_valid_type( int type )
+LTNSError LTNSTermCreate( LTNSTerm **term, char *payload, size_t payload_length, LTNSType type )
 {
-	switch( type )
-	{
-        	case LTNS_INTEGER   : 
-        	case LTNS_STRING    : 
-        	case LTNS_BOOLEAN   : 
-        	case LTNS_NULL      : 
-        	case LTNS_LIST      : 
-        	case LTNS_DICTIONARY:
-			return 1;
-		default:
-			return 0;
-	}
-}
-
-int LTNSTermCreate( LTNSTerm **term, char *payload, size_t payload_length, LTNSType type )
-{
-	if( 	term == NULL || 
-		(payload == NULL && type != LTNS_NULL) ||
-		(payload == NULL && payload_length != 0 ) ||
-		!is_valid_type(type) )
-	{
+	if (term == NULL)
 		return INVALID_ARGUMENT;
+
+	if (	(payload == NULL && type != LTNS_NULL) ||
+		(payload == NULL && payload_length != 0 ) ||
+		!LTNSTypeIsValid(type) )
+	{
+		return INVALID_TNETSTRING;
 	}
 
 	*term = (LTNSTerm*)calloc(1, sizeof(LTNSTerm));
+	if (!*term)
+		return OUT_OF_MEMORY;
 
-	// length calculation:          payload length + : + payload...     + type
-	size_t length = count_digits( payload_length ) + 1 + payload_length + 1;
-	(*term)->raw_length = length;
-	(*term)->raw_data = (char*) calloc(1, length);
-	int printed_chars = snprintf((*term)->raw_data, length, "%lu:", payload_length );
-	memcpy((*term)->raw_data + printed_chars, payload, payload_length);
+	(*term)->is_nested = FALSE;
+
+	size_t prefix_length = payload_length == 0 ? 1 : (size_t)(floor(log10(payload_length)) + 1);
+	// length calculation:  prefix length + : + payload...     + type
+	size_t length =		prefix_length + 1 + payload_length + 1;
+	(*term)->length = length;
+	(*term)->tnetstring = (char*) calloc(length, sizeof(char));
+	int printed_chars = snprintf((*term)->tnetstring, length, "%lu:", payload_length );
+	memcpy((*term)->tnetstring + printed_chars, payload, payload_length);
+
+	(*term)->payload = (*term)->tnetstring + prefix_length + 1;
+	(*term)->payload_length = payload_length;
 
 	// set type
-	(*term)->raw_data[length -1] = (char)(type);
+	(*term)->tnetstring[length -1] = (char)(type);
 	
 	return 0;
 }
 
-int LTNSTermCreateNested( LTNSTerm **term, char *raw_data, size_t raw_length )
+LTNSError LTNSTermCreateNested( LTNSTerm **term, char *tnetstring )
 {
-	return 0;
-}
+	LTNSError error;
 
-int LTNSTermDestroy( LTNSTerm *term )
-{
-	return 0;
-}
-
-int LTNSTermGetPayload( LTNSTerm *term, char **payload, size_t *length, LTNSType *type )
-{
-	return 0;
-}
-
-int LTNSTermGetPayloadLength( LTNSTerm *term, size_t *length )
-{
-	if( term == NULL || length == NULL || term->raw_length < 3)
-	{
+	if (!term)
 		return INVALID_ARGUMENT;
-	}
+	if (!tnetstring)
+		return INVALID_TNETSTRING;
 
-	size_t converted_length = 0;
-	char* current_char = term->raw_data;
+	*term = (LTNSTerm*)calloc(1, sizeof(LTNSTerm));
+	if (!*term)
+		return OUT_OF_MEMORY;
 
-	while( *current_char != ':' && current_char - term->raw_data < 10 )
+	// NOTE: Nested terms does not copy the tnetstring and should *not*
+	// free it when destroyed!
+	(*term)->is_nested = TRUE;
+	(*term)->tnetstring = tnetstring;
+	// Parse the payload, length etc...
+	error = LTNSTermParse(*term);
+	if (error)
 	{
-		converted_length *= 10;
-		converted_length += *current_char - '0';
-		current_char ++;
+		free(*term);
+		*term = NULL;
 	}
 
-	if( *current_char == ':' )
-	{
-		*length = converted_length;
-		return 0;
-	}
+	return error;
+}
+
+LTNSError LTNSTermDestroy( LTNSTerm *term )
+{
+	if (!term)
+		return INVALID_ARGUMENT;
+
+	if (!term->is_nested)
+		free(term->tnetstring);
+
+	free(term);
+
 	return 0;
 }
 
-int LTNSTermGetPayloadType( LTNSTerm *term, LTNSType *type )
+LTNSError LTNSTermGetPayload( LTNSTerm *term, char **payload, size_t *length, LTNSType *type )
 {
-	char retrieved_type = term->raw_data[term->raw_length-1];
-	if( is_valid_type( retrieved_type ) ) 
+	if (!term || !payload)
+		return INVALID_ARGUMENT;
+
+	*payload = term->payload;
+	if (length)
+		*length = term->payload_length;
+	if (type)
+		*type = term->tnetstring[term->length - 1];
+
+	return 0;
+}
+
+LTNSError LTNSTermGetPayloadLength( LTNSTerm *term, size_t *length )
+{
+	if (!term || !length)
+		return INVALID_ARGUMENT;
+
+	*length = term->payload_length;
+
+	return 0;
+}
+
+
+LTNSError LTNSTermGetPayloadType( LTNSTerm *term, LTNSType *type )
+{
+	char retrieved_type = LTNS_UNDEFINED;
+	if (!term || !type)
+		return INVALID_ARGUMENT;
+
+	retrieved_type = term->tnetstring[term->length - 1];
+	if( LTNSTypeIsValid( retrieved_type ) ) 
 	{
 		*type = (LTNSType)retrieved_type;
 		return 0;
@@ -114,5 +129,50 @@ int LTNSTermGetPayloadType( LTNSTerm *term, LTNSType *type )
 	{
 		return INVALID_ARGUMENT;
 	}
+}
+
+LTNSError LTNSTermGetTNetstring( LTNSTerm *term, char** tnetstring, size_t* length )
+{
+	if (!term)
+		return INVALID_ARGUMENT;
+
+	if (tnetstring)
+		*tnetstring = term->tnetstring;
+	if (length)
+		*length = term->length;
+
+	return 0;
+}
+
+LTNSError LTNSTermParse(LTNSTerm* term)
+{
+	char* colon;
+	size_t prefix = 0;
+
+	if (!term)
+		return INVALID_ARGUMENT;
+
+	prefix = (size_t)strtol(term->tnetstring, &colon, 10);
+	/* No number found */
+	if (colon == term->tnetstring)
+		return INVALID_TNETSTRING;
+	/* No colon found */
+	if (*colon != ':' || *colon == '\0')
+		return INVALID_TNETSTRING;
+	/* Prefix longer than specification max length */
+	if (colon > (term->tnetstring + MAX_PREFIX_LENGTH))
+		return INVALID_TNETSTRING;
+
+	/* Total term length is:     prefix length + COLON + payload + TYPE */
+	term->length = (colon - term->tnetstring) + 1     + prefix  + 1;
+	term->payload_length = prefix;
+	/* Pointer to the begining of the payload string */
+	term->payload = colon + 1;
+
+	/* Check type */
+	if (!LTNSTypeIsValid(term->payload[term->payload_length]))
+		return INVALID_TNETSTRING;
+
+	return 0;
 }
 
