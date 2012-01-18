@@ -70,7 +70,7 @@ static int check_raw( LTNSTerm *term, const char* expected_raw, size_t expected_
 	ret = LTNSTermGetTNetstring(term, &tnestring, &length);
 	return !((ret == 0) &&
 		(length == expected_raw_length) &&
-		(bcmp(tnestring, expected_raw, length)));
+		(bcmp(tnestring, expected_raw, length) == 0));
 }
 
 static int check_payload( LTNSTerm *term, const char* expected_payload, size_t expected_length, LTNSType expected_type )
@@ -189,7 +189,7 @@ int test_value_dictionary()
 {
 	int result = LTNSTermDestroy( subject );
 	assert( 0 == (result = LTNSTermCreate( &subject, "3:key,5:value,", 14, LTNS_DICTIONARY)));
-	assert( 0 == (result = check_raw( subject, "13:3:key,5:value,]", 18 )));
+	assert( 0 == (result = check_raw( subject, "14:3:key,5:value,}", 18 )));
 	assert( 0 == (result = check_payload( subject, "3:key,5:value,", 14, LTNS_DICTIONARY)));
 	return result == 0;
 }
