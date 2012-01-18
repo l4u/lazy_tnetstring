@@ -278,7 +278,7 @@ static LTNSError LTNSDataAccessFindKeyPosition(LTNSDataAccess* data_access, cons
 	RETURN_VAL_IF(LTNSTermDestroy(term));
 	RETURN_VAL_IF(error);
 
-	while (!error && tnetstring <= end)
+	while (!error && tnetstring < end)
 	{
 		error = LTNSTermCreateNested(&term, tnetstring);
 		RETURN_VAL_IF(error);
