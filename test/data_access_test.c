@@ -292,6 +292,8 @@ int test_get_empty()
 	error = LTNSDataAccessGet(data_access, "foo", &term);
 	assert(error == KEY_NOT_FOUND);
 	assert(term == NULL);
+
+	return 1;
 }
 
 int test_get_unknown()
