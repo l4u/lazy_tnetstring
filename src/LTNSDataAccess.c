@@ -29,7 +29,7 @@ static LTNSError LTNSDataAccessCreatePrivate(LTNSDataAccess** data_access,
 		return INVALID_ARGUMENT;
 
 	*data_access = NULL;
-	if (length < MIN_HASH_LENGTH)
+	if (length < MIN_HASH_LENGTH || !tnetstring)
 		return INVALID_TNETSTRING;
 	
 	switch (tnetstring[length - 1])
