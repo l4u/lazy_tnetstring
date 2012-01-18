@@ -211,6 +211,7 @@ int test_value_copy()
 
 	char* returned_payload = NULL;
 	assert( 0 == (LTNSTermGetPayload( copy, &returned_payload, NULL, NULL )) );
+	LTNSTermDestroy(copy);
 
 	return payload != returned_payload;
 }
@@ -224,6 +225,7 @@ int test_value_nested()
 	assert( 0 == LTNSTermCreateNested( &nested, data) );
 
 	LTNSTermGetTNetstring(subject, &nested_data, NULL);
+	LTNSTermDestroy(nested);
 	return bcmp(data, nested_data, 6) == 0;
 }
 
