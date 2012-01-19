@@ -288,7 +288,7 @@ static LTNSError LTNSDataAccessFindKeyPosition(LTNSDataAccess* data_access, cons
 		RETURN_VAL_IF(error);
 
 		/* Check the parsed key matches search key */
-		if (!bcmp(payload, key, MIN(key_len, payload_len)))
+		if (!memcmp(payload, key, MIN(key_len, payload_len)))
 		{
 			*position = tnetstring;
 			*next = payload + payload_len + 1;
