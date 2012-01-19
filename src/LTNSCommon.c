@@ -15,3 +15,8 @@ int LTNSTypeIsValid( char type )
 		return FALSE;
 	}
 }
+
+size_t count_digits( int number )
+{
+	return number == 0 ? 1 : (size_t)(floor(log10(number)) + 1);
+}

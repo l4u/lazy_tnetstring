@@ -1,6 +1,9 @@
 #ifndef __LTNS_COMMON_H__
 #define __LTNS_COMMON_H__
 
+#include <stdlib.h>
+#include <math.h>
+
 #define FALSE 0
 #define TRUE (!FALSE)
 #define MAX_PREFIX_LENGTH 10
@@ -29,5 +32,6 @@ typedef enum
 } LTNSError;
 
 int LTNSTypeIsValid( char type );
+size_t count_digits( int number );
 
 #endif

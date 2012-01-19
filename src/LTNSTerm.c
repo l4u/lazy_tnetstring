@@ -31,7 +31,7 @@ LTNSError LTNSTermCreate( LTNSTerm **term, char *payload, size_t payload_length,
 
 	(*term)->is_nested = FALSE;
 
-	size_t prefix_length = payload_length == 0 ? 1 : (size_t)(floor(log10(payload_length)) + 1);
+	size_t prefix_length = count_digits(payload_length);
 	// length calculation:  prefix length + : + payload...     + type
 	size_t length =		prefix_length + 1 + payload_length + 1;
 	(*term)->length = length;

@@ -246,11 +246,6 @@ int test_value_get_with_null_arguments()
 	return result == 0 && memcmp(payload, "foo", 3) == 0;
 }
 
-size_t count_digits(int number)
-{
-	return number == 0 ? 1 : (size_t)(floor(log10(number)) + 1);
-}
-
 int test_count_digits()
 {
 	assert( count_digits(  1) == 1 );
