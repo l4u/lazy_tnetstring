@@ -389,7 +389,7 @@ int test_set_longer()
 int test_set_shorter()
 {
 	LTNSDataAccess *data_access = NULL;
-	const char* tnetstring = "12:3:foo,6:foobar,}";
+	const char* tnetstring = "15:3:foo,6:foobar,}";
 
 	/* when changing the length of top-level key */
 	data_access = new_data_access(tnetstring);
@@ -433,7 +433,7 @@ int test_set_nested_shorter()
 {
 	LTNSDataAccess *data_access = NULL, *inner;
 	LTNSTerm *term = NULL;
-	const char* tnetstring = "24:5:outer,12:3:foo,6:foobar,}}";
+	const char* tnetstring = "27:5:outer,15:3:foo,6:foobar,}}";
 
 	/* when changing the length of a nested key's value */
 	data_access = new_data_access(tnetstring);
