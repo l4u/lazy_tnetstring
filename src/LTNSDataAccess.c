@@ -1,6 +1,7 @@
 #include "LTNSDataAccess.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #define MIN_HASH_LENGTH 3 // "0:}"
 
@@ -9,12 +10,16 @@ static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const 
 static LTNSError LTNSDataAccessAddChild(LTNSDataAccess* data_access, LTNSDataAccess* child);
 static LTNSError LTNSDataAccessFindKeyPosition(LTNSDataAccess* data_access, const char* key, char** position, char** next);
 
+static LTNSError LTNSDataAccessUpdateChildrenOffsets(LTNSDataAccess* data_access, int offset_delta);
+static LTNSDataAccess *LTNSDataAccessGetRoot( LTNSDataAccess* data_access );
+static LTNSError LTNSDataAccessUpdateTree(LTNSDataAccess* data_access, int length_delta, LTNSDataAccess* root, int *total_length_delta);
+
 struct _LTNSDataAccess
 {
 	char* tnetstring;
 	char* scope;
 	size_t length;
-	size_t offset; // NOTE: global offset, i.e. in relation to parent
+	size_t offset; // NOTE: global offset, i.e. in relation to parent (not used/needed?)
 	LTNSDataAccess* parent;
 	LTNSChildNode* children;
 };
@@ -64,6 +69,7 @@ static LTNSError LTNSDataAccessCreatePrivate(LTNSDataAccess** data_access,
 	}
 
 	(*data_access)->length = length;
+	(*data_access)->offset = 0;
 	(*data_access)->scope = NULL;
 	(*data_access)->parent = NULL;
 	(*data_access)->children = NULL;
@@ -85,10 +91,10 @@ LTNSError LTNSDataAccessCreateWithParent(LTNSDataAccess** data_access,
 	if (!parent)
 		return INVALID_ARGUMENT;
 
-	if (offset >= length)
+	if (offset >= parent->length)
 		return INVALID_TNETSTRING;
 
-	error = LTNSDataAccessCreatePrivate(data_access, parent->tnetstring + offset, length, FALSE);
+	error = LTNSDataAccessCreatePrivate(data_access, (parent->tnetstring - parent->offset) + offset, length, FALSE);
 	RETURN_VAL_IF(error);
 
 	(*data_access)->parent = parent;
@@ -181,12 +187,13 @@ LTNSError LTNSDataAccessTermOffset(LTNSDataAccess* data_access, LTNSTerm* term, 
 	error = LTNSTermGetTNetstring(term, &nested_tnetstring, NULL);
 	RETURN_VAL_IF(error);
 
+	/* Check that the nested term is within this data_access */
 	if (nested_tnetstring < data_access->tnetstring)
 		return INVALID_ARGUMENT;
 	if (nested_tnetstring >= (data_access->tnetstring + data_access->length))
 		return INVALID_ARGUMENT;
 
-	*offset = nested_tnetstring - data_access->tnetstring;
+	*offset = nested_tnetstring - (data_access->tnetstring - data_access->offset);
 	return 0;
 }
 
@@ -215,6 +222,89 @@ LTNSError LTNSDataAccessGet(LTNSDataAccess* data_access, const char* key, LTNSTe
 
 LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTerm* term)
 {
+	LTNSError error = 0;
+	LTNSTerm *old_term = NULL;
+	char* old_tnetstring = NULL;
+	size_t old_length = 0;
+	char* new_tnetstring = NULL;
+	size_t new_length = 0;
+
+	if (!data_access || !key || !term)
+		return INVALID_ARGUMENT;
+
+	LTNSDataAccess *root = LTNSDataAccessGetRoot( data_access );
+
+	error = LTNSDataAccessGet(data_access, key, &old_term);
+	// For update
+	if (!error && old_term)
+	{
+		error = LTNSTermGetTNetstring(old_term, &old_tnetstring, &old_length);
+		RETURN_VAL_IF(error);
+		error = LTNSTermGetTNetstring(term, &new_tnetstring, &new_length);
+		RETURN_VAL_IF(error);
+		int length_delta = new_length - old_length;
+
+		if (length_delta == 0) // no length change, just update payload/type
+		{
+			// NOTE: does not support overlapping terms!
+			memcpy(old_tnetstring, new_tnetstring, old_length);
+			return 0;
+		}
+		else if (length_delta < 0)
+		{
+			// Step 0 update prefix' and offsets
+			size_t old_offset = data_access->offset;
+			int total_length_delta = 0;
+			error = LTNSDataAccessUpdateTree(data_access, length_delta, root, &total_length_delta);
+			RETURN_VAL_IF(error);
+
+			// Step 1 memmove for shorter value
+			size_t new_offset = data_access->offset;
+			char* new_position = old_tnetstring + (new_offset - old_offset);
+
+			char* tail = new_position + old_length;
+			size_t tail_length = (root->tnetstring + root->length - total_length_delta + 1) - tail;
+			memmove(tail + length_delta, tail, tail_length);
+
+			// Step 2 realloc root
+			char* new_root_tnetstring = realloc(root->tnetstring, root->length + 1);
+			if (!new_root_tnetstring)
+				return OUT_OF_MEMORY;
+			root->tnetstring = new_root_tnetstring;
+
+			// Step 3 write new term at new_position
+			memcpy(new_position, new_tnetstring, new_length);
+		}
+		else
+		{
+			// Step 0 update prefix' and offsets
+			size_t old_offset = data_access->offset;
+			int total_length_delta = 0;
+			error = LTNSDataAccessUpdateTree(data_access, length_delta, root, &total_length_delta);
+			RETURN_VAL_IF(error);
+
+			// Step 1 realloc root
+			char* new_root_tnetstring = realloc(root->tnetstring, root->length + 1);
+			if (!new_root_tnetstring)
+				return OUT_OF_MEMORY;
+			root->tnetstring = new_root_tnetstring;
+
+			// Step 2 memmove for longer value
+			size_t new_offset = data_access->offset;
+			char* new_position = old_tnetstring + (new_offset - old_offset);
+
+			char* tail = new_position + old_length;
+			size_t tail_length = (root->tnetstring + root->length - total_length_delta + 1) - tail;
+			memmove(tail + length_delta, tail, tail_length);
+
+			// Step 3 write new term at new_position
+			memcpy(new_position, new_tnetstring, new_length);
+		}
+
+	}
+	else if (error == KEY_NOT_FOUND) // For add new
+	{
+	}
 	return 0;
 }
 
@@ -322,6 +412,85 @@ static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const 
 	RETURN_VAL_IF(error);
 	error = LTNSTermCreateNested(term, val_position);
 	RETURN_VAL_IF(error);
+
+	return 0;
+}
+
+static LTNSDataAccess *LTNSDataAccessGetRoot( LTNSDataAccess* data_access )
+{
+	while(data_access && data_access->parent)
+		data_access = data_access->parent;
+
+	return data_access;
+}
+
+static LTNSError LTNSDataAccessUpdateTree(LTNSDataAccess* data_access, int length_delta, LTNSDataAccess* root, int *total_length_delta)
+{
+	char *tnetstring, *payload;
+
+	if (!data_access || length_delta == 0)
+		return INVALID_ARGUMENT;
+
+	LTNSTerm *term = NULL;
+	size_t payload_length = 0;
+	LTNSError error = LTNSDataAccessAsTerm(data_access, &term);
+	RETURN_VAL_IF(error);
+	error = LTNSTermGetPayload(term, &payload, &payload_length, NULL);
+	RETURN_VAL_IF(error);
+	int old_prefix_length = count_digits(payload_length);
+	int new_prefix_length = count_digits(payload_length + length_delta);
+	int prefix_length_delta = new_prefix_length - old_prefix_length;
+
+	// Shift all following data
+	char* colon = payload - 1;
+	if (prefix_length_delta != 0)
+	{
+		size_t shift_length = (root->tnetstring + root->length + 1) - colon;
+		memmove(colon + prefix_length_delta, colon, shift_length);
+	}
+
+	// Write new prefix
+	error = LTNSTermGetTNetstring(term, &tnetstring, NULL);
+	RETURN_VAL_IF(error);
+	snprintf(tnetstring, new_prefix_length + 1, "%lu", payload_length + length_delta);
+	*(colon + prefix_length_delta) = ':';
+
+	// store new length in data access
+	data_access->length += length_delta;
+
+	// Update child offsets/pointers
+	if (prefix_length_delta != 0)
+	{
+		error = LTNSDataAccessUpdateChildrenOffsets(data_access, prefix_length_delta);
+		RETURN_VAL_IF(error);
+	}
+
+	if (data_access->parent)
+		return LTNSDataAccessUpdateTree(data_access->parent, length_delta + prefix_length_delta, root, total_length_delta);
+	else
+	{
+		*total_length_delta = length_delta + prefix_length_delta;
+		return 0;
+	}
+}
+
+static LTNSError LTNSDataAccessUpdateChildrenOffsets(LTNSDataAccess* data_access, int offset_delta)
+{
+	if (!data_access || offset_delta == 0)
+		return INVALID_ARGUMENT;
+
+	data_access->offset += offset_delta;
+	data_access->tnetstring += offset_delta;
+
+	// Update child offsets
+	LTNSChildNode *node = data_access->children;
+	while (node)
+	{
+		LTNSError error = LTNSDataAccessUpdateChildrenOffsets(node->child, offset_delta);
+		RETURN_VAL_IF(error);
+
+		node = node->next;
+	}
 
 	return 0;
 }
