@@ -41,7 +41,7 @@ int test_set_known_null();
 int test_set_unknown_null();
 int test_set_nested_null();
 
-// TODO: bcmp to bcmp, payload not null terminated! also check that LTNSTermGetPayloadLength is correct!
+// TODO: memcmp to memcmp, payload not null terminated! also check that LTNSTermGetPayloadLength is correct!
 
 test_case tests[] = 
 {
@@ -134,7 +134,7 @@ static int check_term(LTNSTerm* term, const char* expected_payload, size_t expec
 	return error == 0 &&
 		type == expected_type &&
 		payload_length == expected_payload_length &&
-		bcmp(payload, expected_payload, payload_length) == 0;
+		memcmp(payload, expected_payload, payload_length) == 0;
 }
 
 static LTNSTerm* new_term(char* payload)

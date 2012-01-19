@@ -70,23 +70,23 @@ static int check_raw( LTNSTerm *term, const char* expected_raw, size_t expected_
 	ret = LTNSTermGetTNetstring(term, &tnestring, &length);
 	return !((ret == 0) &&
 		(length == expected_raw_length) &&
-		(bcmp(tnestring, expected_raw, length) == 0));
+		(memcmp(tnestring, expected_raw, length) == 0));
 }
 
 static int check_payload( LTNSTerm *term, const char* expected_payload, size_t expected_length, LTNSType expected_type )
-{ 
+{
 	char *payload = NULL;
 	size_t length = 0;
 	LTNSType type = LTNS_UNDEFINED;
 	int result = LTNSTermGetPayload( term, &payload, &length, &type );
 	LTNSType seperate_type = LTNS_UNDEFINED;
 	result |= LTNSTermGetPayloadType( term, &seperate_type );
-	
-	return !(result == 0 && 
-		(length == expected_length) && 
+
+	return !(result == 0 &&
+		(length == expected_length) &&
 		(type == expected_type) &&
 		(seperate_type == expected_type) &&
-		(bcmp(payload, expected_payload, length) == 0));
+		(memcmp(payload, expected_payload, length) == 0));
 }
 
 // space for global variables
@@ -227,7 +227,7 @@ int test_value_nested()
 
 	LTNSTermGetTNetstring(subject, &nested_data, NULL);
 	LTNSTermDestroy(nested);
-	return bcmp(data, nested_data, 6) == 0;
+	return memcmp(data, nested_data, 6) == 0;
 }
 
 int test_value_null_bytes()
@@ -243,13 +243,14 @@ int test_value_get_with_null_arguments()
 	// getter test with unset output parameters
 	char* payload = NULL;
 	int result = LTNSTermGetPayload( subject, &payload, NULL, NULL );
-	return result == 0 && bcmp(payload, "foo", 3) == 0;
+	return result == 0 && memcmp(payload, "foo", 3) == 0;
 }
 
 size_t count_digits(int number)
 {
 	return number == 0 ? 1 : (size_t)(floor(log10(number)) + 1);
 }
+
 int test_count_digits()
 {
 	assert( count_digits(  1) == 1 );
