@@ -10,9 +10,11 @@ static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const 
 static LTNSError LTNSDataAccessAddChild(LTNSDataAccess* data_access, LTNSDataAccess* child);
 static LTNSError LTNSDataAccessFindKeyPosition(LTNSDataAccess* data_access, const char* key, char** position, char** next);
 
+static int LTNSDataAccessGetTotalLengthDelta(LTNSDataAccess* data_access, int length_delta);
 static LTNSDataAccess *LTNSDataAccessGetRoot( LTNSDataAccess* data_access );
 static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, int length_delta, LTNSDataAccess* root, int *total_length_delta);
 static LTNSError LTNSDataAccessUpdateOffsets(LTNSDataAccess* data_access, int offset_delta, char* point_of_change);
+static LTNSError LTNSDataAccessUpdateTNetstrings(LTNSDataAccess* data_access, LTNSDataAccess* root);
 
 struct _LTNSDataAccess
 {
@@ -261,7 +263,6 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 			// Step 1 memmove for shorter value
 			size_t new_offset = data_access->offset;
 			char* new_position = old_tnetstring + (new_offset - old_offset);
-
 			char* tail = new_position + old_length;
 			size_t tail_length = (root->tnetstring + root->length - total_length_delta + 1) - tail;
 			memmove(tail + length_delta, tail, tail_length);
@@ -271,6 +272,15 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 			if (!new_root_tnetstring)
 				return OUT_OF_MEMORY;
 			root->tnetstring = new_root_tnetstring;
+			error = LTNSDataAccessUpdateTNetstrings(root, root);
+
+			/* NOTE: At this point the value term's prefix is
+			 * incorrect and any children *after* the value term
+			 * will have invalid offsets! */
+			/* realloc may have moved our data so we need to update new_position */
+			char* key_position = NULL;
+			error = LTNSDataAccessFindKeyPosition(data_access, key, &key_position, &new_position);
+			RETURN_VAL_IF(error);
 
 			// Step 3 update offsets for length change
 			error = LTNSDataAccessUpdateOffsets(root, length_delta, new_position);
@@ -281,22 +291,25 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 		}
 		else
 		{
-			// Step 0 update prefixes and offsets
-			size_t old_offset = data_access->offset;
-			int total_length_delta = 0;
-			error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, root, &total_length_delta);
-			RETURN_VAL_IF(error);
-
-			// Step 1 realloc root
-			char* new_root_tnetstring = realloc(root->tnetstring, root->length + 1);
+			int total_length_delta = LTNSDataAccessGetTotalLengthDelta(data_access, length_delta);
+			// Step 0 realloc root
+			char* new_root_tnetstring = realloc(root->tnetstring, root->length + total_length_delta + 1);
 			if (!new_root_tnetstring)
 				return OUT_OF_MEMORY;
 			root->tnetstring = new_root_tnetstring;
+			error = LTNSDataAccessUpdateTNetstrings(root, root);
+
+			/* realloc may have moved our data so fetch old_tnetstring again */
+			char* key_position = NULL;
+			char* new_position = NULL;
+			error = LTNSDataAccessFindKeyPosition(data_access, key, &key_position, &new_position);
+			RETURN_VAL_IF(error);
+
+			// Step 1 update prefixes and offsets
+			error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, root, &total_length_delta);
+			RETURN_VAL_IF(error);
 
 			// Step 2 memmove for longer value
-			size_t new_offset = data_access->offset;
-			char* new_position = old_tnetstring + (new_offset - old_offset);
-
 			char* tail = new_position + old_length;
 			size_t tail_length = (root->tnetstring + root->length - total_length_delta + 1) - tail;
 			memmove(tail + length_delta, tail, tail_length);
@@ -432,6 +445,28 @@ static LTNSDataAccess *LTNSDataAccessGetRoot( LTNSDataAccess* data_access )
 	return data_access;
 }
 
+static int LTNSDataAccessGetTotalLengthDelta(LTNSDataAccess* data_access, int length_delta)
+{
+	LTNSTerm *term = NULL;
+	size_t payload_length = 0;
+	char *payload;
+
+	if (!data_access)
+	{
+		/* NOTE: No error handling here =/ */
+		LTNSDataAccessAsTerm(data_access, &term);
+		LTNSTermGetPayload(term, &payload, &payload_length, NULL);
+		int old_prefix_length = count_digits(payload_length);
+		int new_prefix_length = count_digits(payload_length + length_delta);
+		int prefix_length_delta = new_prefix_length - old_prefix_length;
+
+		return LTNSDataAccessGetTotalLengthDelta(data_access->parent, prefix_length_delta + length_delta);
+	}
+
+	return length_delta;
+
+}
+
 static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, int length_delta, LTNSDataAccess* root, int *total_length_delta)
 {
 	char *tnetstring, *payload;
@@ -467,7 +502,6 @@ static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, int l
 	data_access->length += length_delta;
 
 	// Update child offsets/pointers for prefix length changes
-	// FIXME: offset_delta differ if child is before or after the changed term!
 	if (prefix_length_delta != 0)
 	{
 		error = LTNSDataAccessUpdateOffsets(data_access, prefix_length_delta, data_access->tnetstring);
@@ -488,7 +522,8 @@ static LTNSError LTNSDataAccessUpdateOffsets(LTNSDataAccess* data_access, int of
 	if (!data_access || offset_delta == 0)
 		return INVALID_ARGUMENT;
 
-	if (data_access->tnetstring >= point_of_change)
+	/* Only update children after point_of_change && never update root */
+	if (data_access->tnetstring >= point_of_change && data_access->parent)
 	{
 		data_access->offset += offset_delta;
 		data_access->tnetstring += offset_delta;
@@ -506,3 +541,21 @@ static LTNSError LTNSDataAccessUpdateOffsets(LTNSDataAccess* data_access, int of
 	return 0;
 }
 
+static LTNSError LTNSDataAccessUpdateTNetstrings(LTNSDataAccess* data_access, LTNSDataAccess* root)
+{
+	if (!data_access || !root)
+		return INVALID_ARGUMENT;
+
+	data_access->tnetstring = root->tnetstring + data_access->offset;
+
+	// Update child offsets
+	LTNSChildNode *node = data_access->children;
+	while (node)
+	{
+		LTNSError error = LTNSDataAccessUpdateTNetstrings(node->child, root);
+		RETURN_VAL_IF(error);
+		node = node->next;
+	}
+
+	return 0;
+}
