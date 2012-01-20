@@ -5,7 +5,6 @@ LT_PREREQ([2.2])
 LT_INIT([shared])
 
 AM_PROG_CC_C_O()
-AC_DISABLE_STATIC()
 AC_PROG_LIBTOOL()
 
 AC_CONFIG_FILES([Makefile src/Makefile test/Makefile])
