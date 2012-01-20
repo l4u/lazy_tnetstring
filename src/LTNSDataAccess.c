@@ -244,6 +244,7 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 		RETURN_VAL_IF(error);
 		error = LTNSTermGetTNetstring(term, &new_tnetstring, &new_length);
 		RETURN_VAL_IF(error);
+		LTNSTermDestroy(old_term);
 		int length_delta = new_length - old_length;
 
 		if (length_delta == 0) // no length change, just update payload/type
@@ -384,7 +385,7 @@ static LTNSError LTNSDataAccessFindKeyPosition(LTNSDataAccess* data_access, cons
 
 
 	/* Skip the tnetstring pointer ahead of the prefix to the payload */
-	error = LTNSTermCreateNested(&term, data_access->tnetstring);
+	error = LTNSDataAccessAsTerm(data_access, &term);
 	RETURN_VAL_IF(error);
 	error = LTNSTermGetPayload(term, &tnetstring, NULL, NULL);
 	RETURN_VAL_IF(LTNSTermDestroy(term));
@@ -460,6 +461,8 @@ static int LTNSDataAccessGetTotalLengthDelta(LTNSDataAccess* data_access, int le
 		int new_prefix_length = count_digits(payload_length + length_delta);
 		int prefix_length_delta = new_prefix_length - old_prefix_length;
 
+		LTNSTermDestroy(term);
+
 		return LTNSDataAccessGetTotalLengthDelta(data_access->parent, prefix_length_delta + length_delta);
 	}
 
@@ -495,6 +498,7 @@ static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, int l
 	// Write new prefix
 	error = LTNSTermGetTNetstring(term, &tnetstring, NULL);
 	RETURN_VAL_IF(error);
+	LTNSTermDestroy(term);
 	snprintf(tnetstring, new_prefix_length + 1, "%lu", payload_length + length_delta);
 	*(colon + prefix_length_delta) = ':';
 

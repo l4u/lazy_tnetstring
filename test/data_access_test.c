@@ -168,8 +168,12 @@ static int set_and_check(LTNSDataAccess* data_access, const char* key, char* pay
 
 	term = new_term(payload);
 	assert(set_key(data_access, key, term));
+	assert(!LTNSTermDestroy(term));
+
 	after_set = get_term(data_access, key);
 	assert(check_term(after_set, payload, length, type));
+	assert(!LTNSTermDestroy(after_set));
+
 	return TRUE;
 }
 
@@ -213,6 +217,7 @@ int test_create_empty()
 	assert(!LTNSDataAccessOffset(data_access, &offset));
 	assert(offset == 0);
 	
+	assert(!LTNSDataAccessDestroy(data_access));
 	return 1;
 }
 
@@ -228,6 +233,7 @@ int test_create()
 	assert(!LTNSDataAccessOffset(data_access, &offset));
 	assert(offset == 0);
 
+	assert(!LTNSDataAccessDestroy(data_access));
 	return 1;
 }
 
@@ -255,6 +261,7 @@ int test_create_with_parent()
 	assert(first->child == data_access);
 	assert(first->next == NULL);
 
+	assert(!LTNSDataAccessDestroy(parent));
 	return 1;
 }
 
@@ -274,6 +281,7 @@ int test_create_with_scope()
 	assert(!strcmp(scope, "scope"));
  
 
+	assert(!LTNSDataAccessDestroy(parent));
 	return 1;
 }
 
@@ -291,6 +299,7 @@ int test_get_empty()
 	assert(error == KEY_NOT_FOUND);
 	assert(term == NULL);
 
+	assert(!LTNSDataAccessDestroy(data_access));
 	return 1;
 }
 
@@ -307,6 +316,7 @@ int test_get_unknown()
 	assert(error == KEY_NOT_FOUND);
 	assert(term == NULL);
 
+	assert(!LTNSDataAccessDestroy(data_access));
 	return 1;
 }
 
@@ -321,6 +331,8 @@ int test_get_known()
 	term = get_term(data_access, "foo");
 	assert(check_term(term, "bar", 3, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(data_access));
+	assert(!LTNSTermDestroy(term));
 	return 1;
 }
 
@@ -334,11 +346,14 @@ int test_get_nested()
 	data_access = new_data_access(tnetstring);
 	term = get_term(data_access, "outer");
 	assert(check_term(term, "5:inner,5:value,", 16, LTNS_DICTIONARY));
+	assert(!LTNSTermDestroy(term));
 
 	inner = new_nested_data_access(data_access, term);
 	term = get_term(inner, "inner");
 	assert(check_term(term, "value", 5, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(data_access));
+	assert(!LTNSTermDestroy(term));
 	return 1;
 }
 
@@ -353,11 +368,13 @@ int test_get_unknown_nested()
 	data_access = new_data_access(tnetstring);
 	term = get_term(data_access, "outer");
 	inner = new_nested_data_access(data_access, term);
+	assert(!LTNSTermDestroy(term));
 
 	error = LTNSDataAccessGet(inner, "non-existing-key", &term);
 	assert(error == KEY_NOT_FOUND);
 	assert(term == NULL);
 
+	assert(!LTNSDataAccessDestroy(data_access));
 	return 1;
 }
 
@@ -371,6 +388,7 @@ int test_set_same_length()
 	data_access = new_data_access(tnetstring);
 	assert(set_and_check(data_access, "foo", "baz", 3, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(data_access));
 	return 1;
 }
 
@@ -383,6 +401,7 @@ int test_set_longer()
 	data_access = new_data_access(tnetstring);
 	assert(set_and_check(data_access, "foo", "foobar", 6, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(data_access));
 	return 1;
 }
 
@@ -395,6 +414,7 @@ int test_set_shorter()
 	data_access = new_data_access(tnetstring);
 	assert(set_and_check(data_access, "foo", "bar", 3, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(data_access));
 	return 1;
 }
 
@@ -411,6 +431,8 @@ int test_set_nested_same_length()
 	inner = new_nested_data_access(data_access, term);
 	assert(set_and_check(inner, "foo", "baz", 3, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(data_access));
+	assert(!LTNSTermDestroy(term));
 	return 1;
 }
 
@@ -426,6 +448,8 @@ int test_set_nested_longer()
 	inner = new_nested_data_access(data_access, term);
 	assert(set_and_check(inner, "foo", "foobar", 6, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(data_access));
+	assert(!LTNSTermDestroy(term));
 	return 1;
 }
 
@@ -441,6 +465,8 @@ int test_set_nested_shorter()
 	inner = new_nested_data_access(data_access, term);
 	assert(set_and_check(inner, "foo", "bar", 3, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(data_access));
+	assert(!LTNSTermDestroy(term));
 	return 1;
 }
 
@@ -458,6 +484,8 @@ int test_set_multiple()
 	inner = new_nested_data_access(data_access, term);
 	assert(set_and_check(inner, "foo", "foobar", 6, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(data_access));
+	assert(!LTNSTermDestroy(term));
 	return 1;
 }
 
@@ -478,6 +506,8 @@ int test_set_multiple_scope()
 	assert(set_and_check(data_access, "key1", "foobar", 6, LTNS_STRING));
 	assert(set_and_check(data_access, "key2", "foobar", 6, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(data_access));
+	assert(!LTNSTermDestroy(term));
 	return 1;
 }
 
@@ -498,6 +528,8 @@ int test_set_multiple_scope_interleaved()
 	assert(set_and_check(data_access, "key2", "foobar", 6, LTNS_STRING));
 	assert(set_and_check(inner, "key2", "foobar", 6, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(data_access));
+	assert(!LTNSTermDestroy(term));
 	return 1;
 }
 
@@ -514,21 +546,28 @@ int test_set_invalidating_scope()
 	data_access = new_data_access(tnetstring);
 	term = get_term(data_access, "level1");
 	level1 = new_nested_data_access(data_access, term);
+	assert(!LTNSTermDestroy(term));
+
 	term = get_term(level1, "level2");
 	level2 = new_nested_data_access(data_access, term);
+	assert(!LTNSTermDestroy(term));
+
 	term = get_term(level2, "level3");
 	level3 = new_nested_data_access(data_access, term);
+	assert(!LTNSTermDestroy(term));
 
 	
 	newlevel3 = new_data_access(tnet_newlevel3);
 	assert(!LTNSDataAccessAsTerm(newlevel3, &term));
 	assert(set_key(level1, "level2", term));
 	LTNSTermDestroy(term);
+
 	term = NULL;
 	error = LTNSDataAccessGet(level3, "key", &term);
 	assert(error == INVALID_SCOPE);
 	assert(term == NULL);
 
+	assert(!LTNSDataAccessDestroy(data_access));
 	return 1;
 }
 
@@ -541,6 +580,7 @@ int test_set_empty()
 	data_access = new_data_access(tnetstring);
 	assert(set_and_check(data_access, "foo", "bar", 3, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(data_access));
 	return 1;
 }
 
@@ -556,6 +596,8 @@ int test_set_non_empty()
 	term = get_term(data_access, "key1");
 	assert(check_term(term, "value1", 6, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(data_access));
+	assert(!LTNSTermDestroy(term));
 	return 1;
 }
 
@@ -585,6 +627,7 @@ int test_set_unknown_null()
 	assert(error == KEY_NOT_FOUND);
 	assert(term == NULL);
 
+	assert(!LTNSDataAccessDestroy(data_access));
 	return 1;
 }
 
