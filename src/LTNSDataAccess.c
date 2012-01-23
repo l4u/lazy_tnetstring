@@ -529,7 +529,7 @@ static LTNSError LTNSDataAccessUpdateOffsets(LTNSDataAccess* data_access, int of
 		return INVALID_ARGUMENT;
 
 	/* Only update children after point_of_change && never update root */
-	if (data_access->tnetstring >= point_of_change && data_access->parent)
+	if (data_access->tnetstring > point_of_change && data_access->parent)
 	{
 		data_access->offset += offset_delta;
 		data_access->tnetstring += offset_delta;
