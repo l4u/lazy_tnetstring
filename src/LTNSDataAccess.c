@@ -452,7 +452,7 @@ static int LTNSDataAccessGetTotalLengthDelta(LTNSDataAccess* data_access, int le
 	size_t payload_length = 0;
 	char *payload;
 
-	if (!data_access)
+	if (data_access)
 	{
 		/* NOTE: No error handling here =/ */
 		LTNSDataAccessAsTerm(data_access, &term);
