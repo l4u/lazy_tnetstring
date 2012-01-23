@@ -265,7 +265,7 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 			size_t new_offset = data_access->offset;
 			char* new_position = old_tnetstring + (new_offset - old_offset);
 			char* tail = new_position + old_length;
-			size_t tail_length = (root->tnetstring + root->length - total_length_delta + 1) - tail;
+			size_t tail_length = (root->tnetstring + root->length - length_delta + 1) - tail;
 			memmove(tail + length_delta, tail, tail_length);
 
 			// Step 2 realloc root
@@ -312,7 +312,7 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 
 			// Step 2 memmove for longer value
 			char* tail = new_position + old_length;
-			size_t tail_length = (root->tnetstring + root->length - total_length_delta + 1) - tail;
+			size_t tail_length = (root->tnetstring + root->length - length_delta + 1) - tail;
 			memmove(tail + length_delta, tail, tail_length);
 
 			// Step 3 update offsets for length change
