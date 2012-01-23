@@ -309,6 +309,8 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 			// Step 1 update prefixes and offsets
 			error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, root, &total_length_delta);
 			RETURN_VAL_IF(error);
+			// new_position may have shifted due to longer prefixes
+			new_position += (total_length_delta - length_delta);
 
 			// Step 2 memmove for longer value
 			char* tail = new_position + old_length;
