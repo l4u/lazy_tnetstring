@@ -549,11 +549,11 @@ int test_set_invalidating_scope()
 	assert(!LTNSTermDestroy(term));
 
 	term = get_term(level1, "level2");
-	level2 = new_nested_data_access(data_access, term);
+	level2 = new_nested_data_access(level1, term);
 	assert(!LTNSTermDestroy(term));
 
 	term = get_term(level2, "level3");
-	level3 = new_nested_data_access(data_access, term);
+	level3 = new_nested_data_access(level2, term);
 	assert(!LTNSTermDestroy(term));
 
 	
@@ -564,7 +564,7 @@ int test_set_invalidating_scope()
 
 	term = NULL;
 	error = LTNSDataAccessGet(level3, "key", &term);
-	assert(error == INVALID_SCOPE);
+	assert(error == INVALID_CHILD);
 	assert(term == NULL);
 
 	assert(!LTNSDataAccessDestroy(data_access));

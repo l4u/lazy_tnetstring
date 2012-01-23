@@ -15,6 +15,8 @@ static LTNSDataAccess *LTNSDataAccessGetRoot( LTNSDataAccess* data_access );
 static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, int length_delta, LTNSDataAccess* root, int *total_length_delta);
 static LTNSError LTNSDataAccessUpdateOffsets(LTNSDataAccess* data_access, int offset_delta, char* point_of_change);
 static LTNSError LTNSDataAccessUpdateTNetstrings(LTNSDataAccess* data_access, LTNSDataAccess* root);
+static LTNSChildNode* LTNSDataAccessFindChild(LTNSDataAccess* data_access, LTNSDataAccess* child);
+static void LTNSDataAccessDeleteChildAt(LTNSDataAccess* data_access, char* position);
 
 struct _LTNSDataAccess
 {
@@ -93,7 +95,7 @@ LTNSError LTNSDataAccessCreateWithParent(LTNSDataAccess** data_access,
 	if (!parent)
 		return INVALID_ARGUMENT;
 
-	if (offset >= parent->length)
+	if (offset >= (parent->offset + parent->length))
 		return INVALID_TNETSTRING;
 
 	error = LTNSDataAccessCreatePrivate(data_access, (parent->tnetstring - parent->offset) + offset, length, FALSE);
@@ -210,17 +212,20 @@ LTNSError LTNSDataAccessScope(LTNSDataAccess* data_access, char** scope)
 
 LTNSError LTNSDataAccessGet(LTNSDataAccess* data_access, const char* key, LTNSTerm** term)
 {
-	if (!term)
+	if (!term || !data_access)
 		return INVALID_ARGUMENT;
 	if (!key)
 	{
 		*term = NULL;
 		return KEY_NOT_FOUND;
 	}
+	if (data_access->parent && !LTNSDataAccessFindChild(data_access->parent, data_access))
+		return INVALID_CHILD;
 
 	*term = NULL;
 	return LTNSDataAccessFindValueTerm(data_access, key, term);
 }
+
 
 LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTerm* term)
 {
@@ -233,6 +238,8 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 
 	if (!data_access || !key || !term)
 		return INVALID_ARGUMENT;
+	if (data_access->parent && !LTNSDataAccessFindChild(data_access->parent, data_access))
+		return INVALID_CHILD;
 
 	LTNSDataAccess *root = LTNSDataAccessGetRoot( data_access );
 
@@ -246,6 +253,12 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 		RETURN_VAL_IF(error);
 		LTNSTermDestroy(old_term);
 		int length_delta = new_length - old_length;
+
+		/* Check if we are overwriting a child */
+		LTNSType old_type = LTNS_UNDEFINED;
+		error = LTNSTermGetPayloadType(old_term, &old_type);
+		if (old_type == LTNS_DICTIONARY)
+			LTNSDataAccessDeleteChildAt(data_access, old_tnetstring);
 
 		if (length_delta == 0) // no length change, just update payload/type
 		{
@@ -564,4 +577,38 @@ static LTNSError LTNSDataAccessUpdateTNetstrings(LTNSDataAccess* data_access, LT
 	}
 
 	return 0;
+}
+
+static LTNSChildNode* LTNSDataAccessFindChild(LTNSDataAccess* data_access, LTNSDataAccess* child)
+{
+	LTNSChildNode *node = data_access->children;
+
+	while (node)
+	{
+		if (node->child == child)
+			return node;
+		node = node->next;
+	}
+
+	return NULL;
+}
+static void LTNSDataAccessDeleteChildAt(LTNSDataAccess* data_access, char* position)
+{
+	LTNSChildNode *prev = NULL;
+	LTNSChildNode *node = data_access->children;
+	while (node)
+	{
+		if (node->child->tnetstring == position)
+		{
+			LTNSDataAccessDestroy(node->child);
+			if (prev)
+				prev->next = node->next;
+			else
+				data_access->children = node->next;
+			free(node);
+			break;
+		}
+		prev = node;
+		node = node->next;
+	}
 }
