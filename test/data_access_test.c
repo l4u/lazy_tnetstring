@@ -51,7 +51,6 @@ test_case tests[] =
 	{test_create_empty, "create with an empty hash"},
 	{test_create, "create with a hash"},
 	{test_create_with_parent, "create with parent"},
-	{test_create_with_scope, "create with scope"},
 	/* get */
 	{test_get_empty, "get from empty hash"},
 	{test_get_unknown, "get with unknown key"},
@@ -98,16 +97,9 @@ static LTNSDataAccess* new_data_access(const char* tnetstring)
 static LTNSDataAccess* new_nested_data_access(LTNSDataAccess* parent, LTNSTerm* term)
 {
 	LTNSDataAccess* data_access = NULL;
-	size_t length = 0, offset = 0;
 	LTNSError error;
 
-	error = LTNSDataAccessTermOffset(parent, term, &offset);
-	assert(!error);
-	assert(offset > 0);
-	error = LTNSTermGetTNetstring(term, NULL, &length);
-	assert(!error);
-	assert(length > 0);
-	error = LTNSDataAccessCreateWithParent(&data_access, parent, offset, length);
+	error = LTNSDataAccessCreateNested(&data_access, parent, term);
 	assert(!error);
 	assert(data_access != NULL);
 
@@ -241,16 +233,19 @@ int test_create_with_parent()
 {
 	LTNSDataAccess *data_access = NULL, *parent;
 	LTNSError error;
-	const char* tnetstring = "0:}";
+	const char* tnetstring = "9:3:key,0:}}";
 
 	/* with parent */
 	parent = new_data_access(tnetstring);
-	error = LTNSDataAccessCreateWithParent(&data_access, parent, 0, 3);
+	LTNSTerm *child_term;
+	LTNSDataAccessGet( parent, "key", &child_term );
+	error = LTNSDataAccessCreateNested(&data_access, parent, child_term);
 	assert(!error);
+	assert(!LTNSTermDestroy(child_term));
 	assert(data_access);
 	size_t offset = 0;
 	assert(!LTNSDataAccessOffset(data_access, &offset));
-	assert(offset == 0);
+	assert(offset == 8);
 	
 	LTNSDataAccess *returned_parent = NULL;
 	assert(!LTNSDataAccessParent(data_access, &returned_parent));
@@ -264,27 +259,6 @@ int test_create_with_parent()
 	assert(!LTNSDataAccessDestroy(parent));
 	return 1;
 }
-
-int test_create_with_scope()
-{
-	LTNSDataAccess *data_access = NULL, *parent;
-	LTNSError error;
-	const char* tnetstring = "0:}";
-
-	/* with scope */
-	parent = new_data_access(tnetstring);
-	error = LTNSDataAccessCreateWithScope(&data_access, parent, 0, 3, "scope");
-	assert(!error);
-	assert(data_access);
-	char* scope = NULL;
-	assert(!LTNSDataAccessScope(data_access, &scope));
-	assert(!strcmp(scope, "scope"));
- 
-
-	assert(!LTNSDataAccessDestroy(parent));
-	return 1;
-}
-
 
 int test_get_empty()
 {
@@ -346,9 +320,9 @@ int test_get_nested()
 	data_access = new_data_access(tnetstring);
 	term = get_term(data_access, "outer");
 	assert(check_term(term, "5:inner,5:value,", 16, LTNS_DICTIONARY));
-	assert(!LTNSTermDestroy(term));
 
 	inner = new_nested_data_access(data_access, term);
+	assert(!LTNSTermDestroy(term));
 	term = get_term(inner, "inner");
 	assert(check_term(term, "value", 5, LTNS_STRING));
 
@@ -556,16 +530,21 @@ int test_set_invalidating_scope()
 	level3 = new_nested_data_access(level2, term);
 	assert(!LTNSTermDestroy(term));
 
-	
 	newlevel3 = new_data_access(tnet_newlevel3);
 	assert(!LTNSDataAccessAsTerm(newlevel3, &term));
 	assert(set_key(level1, "level2", term));
 	LTNSTermDestroy(term);
+	LTNSDataAccessDestroy(newlevel3);
 
 	term = NULL;
 	error = LTNSDataAccessGet(level3, "key", &term);
 	assert(error == INVALID_CHILD);
 	assert(term == NULL);
+	error = LTNSDataAccessGet(level2, "level3", &term);
+	assert(error == INVALID_CHILD);
+	assert(term == NULL);
+	/* NOTE: Dangling children must be manually destroyed */
+	assert(!LTNSDataAccessDestroy(level2));
 
 	assert(!LTNSDataAccessDestroy(data_access));
 	return 1;
