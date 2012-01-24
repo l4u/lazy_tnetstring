@@ -19,6 +19,7 @@ typedef enum
 	LTNS_NULL      = '~',
 	LTNS_LIST      = ']',
 	LTNS_DICTIONARY= '}',
+	LTNS_FLOAT     = '^'
 } LTNSType;
 
 typedef enum
@@ -32,6 +33,6 @@ typedef enum
 } LTNSError;
 
 int LTNSTypeIsValid( char type );
-size_t count_digits( int number );
+size_t count_digits( long long unsigned int number );
 
 #endif

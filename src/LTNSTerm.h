@@ -8,7 +8,7 @@
 struct _LTNSTerm;
 typedef struct _LTNSTerm LTNSTerm;
 
-LTNSError LTNSTermCreate( LTNSTerm **term, char *payload, size_t payload_length, LTNSType type );
+LTNSError LTNSTermCreate( LTNSTerm **term, const char *payload, size_t payload_length, LTNSType type );
 
 LTNSError LTNSTermCreateNested( LTNSTerm **term, char *tnetstring );
 

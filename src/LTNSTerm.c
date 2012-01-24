@@ -13,7 +13,7 @@ struct _LTNSTerm
 	char is_nested;
 };
 
-LTNSError LTNSTermCreate( LTNSTerm **term, char *payload, size_t payload_length, LTNSType type )
+LTNSError LTNSTermCreate( LTNSTerm **term, const char *payload, size_t payload_length, LTNSType type )
 {
 	if (term == NULL)
 		return INVALID_ARGUMENT;
@@ -164,7 +164,7 @@ LTNSError LTNSTermParse(LTNSTerm* term)
 	if (colon > (term->tnetstring + MAX_PREFIX_LENGTH))
 		return INVALID_TNETSTRING;
 
-	/* Total term length is:     prefix length + COLON + payload + TYPE */
+	/* Total term length is:    prefix length + COLON + payload + TYPE */
 	term->length = (colon - term->tnetstring) + 1     + prefix  + 1;
 	term->payload_length = prefix;
 	/* Pointer to the begining of the payload string */
