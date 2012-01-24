@@ -10,10 +10,10 @@ static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const 
 static LTNSError LTNSDataAccessAddChild(LTNSDataAccess* data_access, LTNSDataAccess* child);
 static LTNSError LTNSDataAccessFindKeyPosition(LTNSDataAccess* data_access, const char* key, char** position, char** next);
 
-static int LTNSDataAccessGetTotalLengthDelta(LTNSDataAccess* data_access, int length_delta);
+static long LTNSDataAccessGetTotalLengthDelta(LTNSDataAccess* data_access, long length_delta);
 static LTNSDataAccess *LTNSDataAccessGetRoot( LTNSDataAccess* data_access );
-static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, int length_delta, LTNSDataAccess* root, int *total_length_delta);
-static LTNSError LTNSDataAccessUpdateOffsets(LTNSDataAccess* data_access, int offset_delta, char* point_of_change);
+static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long length_delta, LTNSDataAccess* root, long *total_length_delta);
+static LTNSError LTNSDataAccessUpdateOffsets(LTNSDataAccess* data_access, long offset_delta, char* point_of_change);
 static LTNSError LTNSDataAccessUpdateTNetstrings(LTNSDataAccess* data_access, LTNSDataAccess* root);
 static LTNSChildNode* LTNSDataAccessFindChild(LTNSDataAccess* data_access, LTNSDataAccess* child);
 static int LTNSDataAccessIsChildValid(LTNSDataAccess* data_access);
@@ -234,7 +234,7 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 		RETURN_VAL_IF(error);
 		error = LTNSTermGetTNetstring(term, &new_tnetstring, &new_length);
 		RETURN_VAL_IF(error);
-		int length_delta = new_length - old_length;
+		long length_delta = new_length - old_length;
 
 		/* Check if we are overwriting a child */
 		LTNSType old_type = LTNS_UNDEFINED;
@@ -254,7 +254,7 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 		{
 			// Step 0 update prefixes and offsets
 			size_t old_offset = data_access->offset;
-			int total_length_delta = 0;
+			long total_length_delta = 0;
 			error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, root, &total_length_delta);
 			RETURN_VAL_IF(error);
 
@@ -289,7 +289,7 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 		}
 		else
 		{
-			int total_length_delta = LTNSDataAccessGetTotalLengthDelta(data_access, length_delta);
+			long total_length_delta = LTNSDataAccessGetTotalLengthDelta(data_access, length_delta);
 			// Step 0 realloc root
 			char* new_root_tnetstring = realloc(root->tnetstring, root->length + total_length_delta + 1);
 			if (!new_root_tnetstring)
@@ -443,7 +443,7 @@ static LTNSDataAccess *LTNSDataAccessGetRoot( LTNSDataAccess* data_access )
 	return data_access;
 }
 
-static int LTNSDataAccessGetTotalLengthDelta(LTNSDataAccess* data_access, int length_delta)
+static long LTNSDataAccessGetTotalLengthDelta(LTNSDataAccess* data_access, long length_delta)
 {
 	LTNSTerm *term = NULL;
 	size_t payload_length = 0;
@@ -454,9 +454,9 @@ static int LTNSDataAccessGetTotalLengthDelta(LTNSDataAccess* data_access, int le
 		/* NOTE: No error handling here =/ */
 		LTNSDataAccessAsTerm(data_access, &term);
 		LTNSTermGetPayload(term, &payload, &payload_length, NULL);
-		int old_prefix_length = count_digits(payload_length);
-		int new_prefix_length = count_digits(payload_length + length_delta);
-		int prefix_length_delta = new_prefix_length - old_prefix_length;
+		size_t old_prefix_length = count_digits(payload_length);
+		size_t new_prefix_length = count_digits(payload_length + length_delta);
+		long prefix_length_delta = new_prefix_length - old_prefix_length;
 
 		LTNSTermDestroy(term);
 
@@ -467,7 +467,7 @@ static int LTNSDataAccessGetTotalLengthDelta(LTNSDataAccess* data_access, int le
 
 }
 
-static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, int length_delta, LTNSDataAccess* root, int *total_length_delta)
+static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long length_delta, LTNSDataAccess* root, long *total_length_delta)
 {
 	char *tnetstring, *payload;
 
@@ -480,9 +480,9 @@ static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, int l
 	RETURN_VAL_IF(error);
 	error = LTNSTermGetPayload(term, &payload, &payload_length, NULL);
 	RETURN_VAL_IF(error);
-	int old_prefix_length = count_digits(payload_length);
-	int new_prefix_length = count_digits(payload_length + length_delta);
-	int prefix_length_delta = new_prefix_length - old_prefix_length;
+	size_t old_prefix_length = count_digits(payload_length);
+	size_t new_prefix_length = count_digits(payload_length + length_delta);
+	long prefix_length_delta = new_prefix_length - old_prefix_length;
 
 	// Shift all following data
 	char* colon = payload - 1;
@@ -518,7 +518,7 @@ static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, int l
 	}
 }
 
-static LTNSError LTNSDataAccessUpdateOffsets(LTNSDataAccess* data_access, int offset_delta, char* point_of_change)
+static LTNSError LTNSDataAccessUpdateOffsets(LTNSDataAccess* data_access, long offset_delta, char* point_of_change)
 {
 	if (!data_access || offset_delta == 0)
 		return INVALID_ARGUMENT;
