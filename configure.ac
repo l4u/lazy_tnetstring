@@ -7,5 +7,6 @@ LT_INIT([shared])
 AM_PROG_CC_C_O()
 AC_PROG_LIBTOOL()
 
+AC_CONFIG_COMMANDS([generate_ruby_makefile], [pushd ext && ruby extconf.rb; popd])
 AC_CONFIG_FILES([Makefile src/Makefile test/Makefile])
 AC_OUTPUT()
