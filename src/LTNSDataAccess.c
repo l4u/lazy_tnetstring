@@ -16,6 +16,7 @@ static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long 
 static LTNSError LTNSDataAccessUpdateOffsets(LTNSDataAccess* data_access, long offset_delta, char* point_of_change);
 static LTNSError LTNSDataAccessUpdateTNetstrings(LTNSDataAccess* data_access, LTNSDataAccess* root);
 static LTNSChildNode* LTNSDataAccessFindChild(LTNSDataAccess* data_access, LTNSDataAccess* child);
+static LTNSChildNode* LTNSDataAccessFindChildAt(LTNSDataAccess* data_access, char* position);
 static int LTNSDataAccessIsChildValid(LTNSDataAccess* data_access);
 static void LTNSDataAccessDeleteChildAt(LTNSDataAccess* data_access, char* position);
 
@@ -89,6 +90,10 @@ LTNSError LTNSDataAccessCreate(LTNSDataAccess** data_access, const char* tnetstr
 
 LTNSError LTNSDataAccessCreateNested( LTNSDataAccess **child, LTNSDataAccess *parent, LTNSTerm *term)
 {
+	char *tnetstring = NULL;
+	size_t length = 0, offset = 0;
+	LTNSError error;
+
 	if( !term || !child || !parent)
 		return INVALID_ARGUMENT;
 
@@ -97,15 +102,21 @@ LTNSError LTNSDataAccessCreateNested( LTNSDataAccess **child, LTNSDataAccess *pa
 	if( type != LTNS_DICTIONARY )
 		return INVALID_ARGUMENT;
 
-	size_t length = 0, offset = 0;
-	LTNSError error;
 
 	error = LTNSDataAccessTermOffset(parent, term, &offset);
 	RETURN_VAL_IF( error );
-	error = LTNSTermGetTNetstring(term, NULL, &length);
+	error = LTNSTermGetTNetstring(term, &tnetstring, &length);
 	RETURN_VAL_IF( error );
 
-	error = LTNSDataAccessCreatePrivate(child, (parent->tnetstring - parent->offset) + offset, length, FALSE);
+	/* Don't create new child if it is already in the parent's child list */
+	LTNSChildNode *node = LTNSDataAccessFindChildAt(parent, tnetstring);
+	if (node)
+	{
+		*child = node->child;
+		return 0;
+	}
+
+	error = LTNSDataAccessCreatePrivate(child, tnetstring, length, FALSE);
 	RETURN_VAL_IF(error);
 
 	(*child)->parent = parent;
@@ -568,6 +579,19 @@ static LTNSChildNode* LTNSDataAccessFindChild(LTNSDataAccess* data_access, LTNSD
 	while (node)
 	{
 		if (node->child == child)
+			return node;
+		node = node->next;
+	}
+
+	return NULL;
+}
+static LTNSChildNode* LTNSDataAccessFindChildAt(LTNSDataAccess* data_access, char* position)
+{
+	LTNSChildNode *node = data_access->children;
+
+	while (node)
+	{
+		if (node->child->tnetstring == position)
 			return node;
 		node = node->next;
 	}
