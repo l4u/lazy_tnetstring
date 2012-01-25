@@ -10,6 +10,8 @@ int ltns_parse_array(const char* payload, size_t length, VALUE* out);
 int ltns_parse_nil(const char* payload, size_t length, VALUE* out);
 int ltns_parse(const char* tnetstring, const char* end, VALUE* out);
 
+extern VALUE eInvalidTNetString;
+
 VALUE ltns_parse_ruby(VALUE module __attribute__ ((unused)), VALUE string)
 {
 	VALUE ret = Qnil;
@@ -24,8 +26,7 @@ VALUE ltns_parse_ruby(VALUE module __attribute__ ((unused)), VALUE string)
 	char* tnet_end = tnetstring + RSTRING_LEN(string);
 	if (!ltns_parse(tnetstring, tnet_end, &ret))
 	{
-		VALUE rb_eArgumentError = rb_const_get(rb_cObject, rb_intern("ArgumentError"));
-		rb_raise(rb_eArgumentError, "Invalid TNetstring");
+		rb_raise(eInvalidTNetString, "Invalid TNetstring");
 	}
 	return ret;
 }

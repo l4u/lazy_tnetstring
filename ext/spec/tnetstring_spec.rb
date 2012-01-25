@@ -59,7 +59,7 @@ describe LazyTNetstring do
     end
 
     it "raises on a lengthy null" do
-      expect { LazyTNetstring.parse('1:x~') }.to raise_error(ArgumentError)
+      expect { LazyTNetstring.parse('1:x~') }.to raise_error(LazyTNetstring::InvalidTNetString)
     end
 
     it "parses a boolean" do
@@ -67,19 +67,19 @@ describe LazyTNetstring do
     end
 
     it "raises on a bad boolean" do
-      expect { LazyTNetstring.parse('5:pants!') }.to raise_error(ArgumentError)
+      expect { LazyTNetstring.parse('5:pants!') }.to raise_error(LazyTNetstring::InvalidTNetString)
     end
 
     it "raises with negative length" do
-      expect { LazyTNetstring.parse("-1:asd,") }.to raise_error(ArgumentError)
+      expect { LazyTNetstring.parse("-1:asd,") }.to raise_error(LazyTNetstring::InvalidTNetString)
     end
 
     it "raises with absurd length" do
-      expect { LazyTNetstring.parse("1000000000:asd,") }.to raise_error(ArgumentError)
+      expect { LazyTNetstring.parse("1000000000:asd,") }.to raise_error(LazyTNetstring::InvalidTNetString)
     end
 
     it "raises on unknown type" do
-      expect { LazyTNetstring.parse('0:)') }.to raise_error(ArgumentError)
+      expect { LazyTNetstring.parse('0:)') }.to raise_error(LazyTNetstring::InvalidTNetString)
     end
   end
 
