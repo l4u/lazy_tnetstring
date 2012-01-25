@@ -76,6 +76,12 @@ LTNSError LTNSTermCreateNested( LTNSTerm **term, char *tnetstring, char *tnet_en
 	return error;
 }
 
+LTNSError LTNSTermCreateFromTNestring( LTNSTerm **term, char *tnetstring )
+{
+	size_t length = strlen(tnetstring);
+	return LTNSTermCreateNested(term, tnetstring, tnetstring + length);
+}
+
 LTNSError LTNSTermDestroy( LTNSTerm *term )
 {
 	if (!term)

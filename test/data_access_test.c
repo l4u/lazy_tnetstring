@@ -489,6 +489,8 @@ int test_set_multiple_scope_interleaved()
 {
 	LTNSDataAccess *data_access = NULL, *inner;
 	LTNSTerm *term = NULL;
+//	char* long_str = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; // 100 bytes
+	char* long_str = "11111111112222222222333333333344444444445555555555"; // 50 bytes
 
 	/* when changing multiple interleaved values on different levels while re-using scoped data_accesses */
 	const char* tnetstring = "64:4:key1,3:bar,5:outer,26:4:key1,3:bar,4:key2,3:bar,}4:key2,3:bar,}";
@@ -498,7 +500,7 @@ int test_set_multiple_scope_interleaved()
 	inner = new_nested_data_access(data_access, term);
 
 	assert(set_and_check(data_access, "key1", "foobar", 6, LTNS_STRING));
-	assert(set_and_check(inner, "key1", "foobar", 6, LTNS_STRING));
+	assert(set_and_check(inner, "key1", long_str, strlen(long_str), LTNS_STRING));
 	assert(set_and_check(data_access, "key2", "foobar", 6, LTNS_STRING));
 	assert(set_and_check(inner, "key2", "foobar", 6, LTNS_STRING));
 

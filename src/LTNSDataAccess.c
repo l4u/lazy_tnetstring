@@ -14,7 +14,6 @@ static LTNSError LTNSDataAccessAddChild(LTNSDataAccess* data_access, LTNSDataAcc
 static LTNSError LTNSDataAccessFindKeyPosition(LTNSDataAccess* data_access, const char* key, char** position, char** next);
 
 static long LTNSDataAccessGetTotalLengthDelta(LTNSDataAccess* data_access, long length_delta);
-static LTNSDataAccess *LTNSDataAccessGetRoot( LTNSDataAccess* data_access );
 static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long length_delta, LTNSDataAccess* root, long *total_length_delta);
 static LTNSError LTNSDataAccessUpdateOffsets(LTNSDataAccess* data_access, long offset_delta, char* point_of_change);
 static LTNSError LTNSDataAccessUpdateTNetstrings(LTNSDataAccess* data_access, LTNSDataAccess* root);
@@ -88,6 +87,12 @@ static LTNSError LTNSDataAccessCreatePrivate(LTNSDataAccess** data_access,
 
 LTNSError LTNSDataAccessCreate(LTNSDataAccess** data_access, const char* tnetstring, size_t length)
 {
+	/* Check if tnetstring is valid */
+	LTNSTerm *term = NULL;
+	LTNSError error = LTNSTermCreateNested(&term, (char*)tnetstring, (char*)tnetstring + length);
+	RETURN_VAL_IF(error);
+	LTNSTermDestroy(term);
+
 	return LTNSDataAccessCreatePrivate(data_access, tnetstring, length, TRUE);
 }
 
@@ -222,7 +227,7 @@ LTNSError LTNSDataAccessGet(LTNSDataAccess* data_access, const char* key, LTNSTe
 	if (!key)
 	{
 		*term = NULL;
-		return KEY_NOT_FOUND;
+		return INVALID_ARGUMENT;
 	}
 	if (IS_CHILD(data_access) && !LTNSDataAccessIsChildValid(data_access))
 		return INVALID_CHILD;
@@ -410,7 +415,7 @@ static LTNSError LTNSDataAccessFindKeyPosition(LTNSDataAccess* data_access, cons
 	RETURN_VAL_IF(LTNSTermDestroy(term));
 	RETURN_VAL_IF(error);
 
-	while (!error && tnetstring < end)
+	while (!error && tnetstring < end - 1)
 	{
 		error = LTNSTermCreateNested(&term, tnetstring, end);
 		RETURN_VAL_IF(error);
@@ -457,7 +462,7 @@ static LTNSError LTNSDataAccessFindValueTerm(LTNSDataAccess* data_access, const 
 	return 0;
 }
 
-static LTNSDataAccess *LTNSDataAccessGetRoot( LTNSDataAccess* data_access )
+LTNSDataAccess *LTNSDataAccessGetRoot( LTNSDataAccess* data_access )
 {
 	while(data_access && IS_CHILD(data_access))
 		data_access = data_access->parent;
@@ -581,6 +586,13 @@ static LTNSError LTNSDataAccessUpdateTNetstrings(LTNSDataAccess* data_access, LT
 	}
 
 	return 0;
+}
+
+int LTNSDataAccessIsChildCached(LTNSDataAccess* data_access, LTNSTerm* term)
+{
+	char *tnetstring;
+	LTNSTermGetTNetstring(term, &tnetstring, NULL);
+	return LTNSDataAccessFindChildAt(data_access, tnetstring) != NULL;
 }
 
 static LTNSChildNode* LTNSDataAccessFindChild(LTNSDataAccess* data_access, LTNSDataAccess* child)

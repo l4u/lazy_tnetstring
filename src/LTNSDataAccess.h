@@ -29,4 +29,7 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 
 LTNSError LTNSDataAccessAsTerm(LTNSDataAccess* data_access, LTNSTerm** term);
 
+LTNSDataAccess *LTNSDataAccessGetRoot( LTNSDataAccess* data_access );
+
+int LTNSDataAccessIsChildCached(LTNSDataAccess* data_access, LTNSTerm* term);
 #endif

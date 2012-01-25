@@ -2,7 +2,7 @@
 
 #include "LTNS.h"
 
-extern VALUE ltns_dump(VALUE val);
+extern VALUE ltns_dump(VALUE module, VALUE val);
 extern int ltns_parse(const char* tnetstring, const char* end, VALUE* out);
 extern VALUE ltns_parse_ruby(VALUE string);
 
@@ -14,11 +14,18 @@ typedef struct _Wrapper
 
 VALUE cDataAccess;
 VALUE cModule;
+VALUE eInvalidTNetString;
+VALUE eUnsupportedTopLevelDataStructure;
+VALUE eInvalidScope;
 
 VALUE ltns_da_init(VALUE self);
 void ltns_da_mark(void* ptr);
 void ltns_da_free(void* ptr);
 VALUE ltns_da_new(VALUE class, VALUE dict);
+VALUE ltns_da_get(VALUE self, VALUE key);
+VALUE ltns_da_set(VALUE self, VALUE key, VALUE new_value);
+VALUE ltns_da_get_tnetstring(VALUE self);
+VALUE ltns_da_get_offset(VALUE self);
 
 void ltns_da_raise_on_error(LTNSError error);
 
@@ -40,15 +47,24 @@ void ltns_da_free(void* ptr)
 	free(wrapper);
 }
 
-VALUE ltns_da_new(VALUE class, VALUE dict)
+void ltns_da_free_wrapper(void* ptr)
 {
-	VALUE tnetstring = ltns_dump(dict);
-	
+	/* Don't free a rewrapped DataAccess */
+	Wrapper *wrapper = (Wrapper*)ptr;
+	free(wrapper);
+}
+
+VALUE ltns_da_new(VALUE class, VALUE tnetstring)
+{
+	if (TYPE(tnetstring) != T_STRING)
+	{
+		ltns_da_raise_on_error(INVALID_ARGUMENT);
+	}
+
 	Wrapper *wrapper = calloc(1, sizeof(Wrapper));
 	if (!wrapper)
 	{
-		VALUE rb_eNoMemoryError = rb_const_get(rb_cObject, rb_intern("NoMemoryError"));
-		rb_raise(rb_eNoMemoryError, "Out of memory");
+		ltns_da_raise_on_error(OUT_OF_MEMORY);
 	}
 	wrapper->parent = Qnil;
 	LTNSError error = LTNSDataAccessCreate(&wrapper->data_access, RSTRING_PTR(tnetstring), RSTRING_LEN(tnetstring));
@@ -75,6 +91,8 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 
 	LTNSTerm *term = NULL;
 	LTNSError error = LTNSDataAccessGet(wrapper->data_access, key_cstr, &term);
+	if (error == KEY_NOT_FOUND)
+		return Qnil;
 	if (error)
 	{
 		LTNSTermDestroy(term);
@@ -88,6 +106,16 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 	if (type == LTNS_DICTIONARY)
 	{
 		LTNSDataAccess *child = NULL;
+		/* Check which free function to use */
+		void (*free_func)(void*) = ltns_da_free;
+		if (LTNSDataAccessIsChildCached(wrapper->data_access, term))
+		{
+			/* The child at term->tnetstring already exists, so we
+			 * use a special free function as we "re-wrap" this
+			 * DataAccess */
+			free_func = ltns_da_free_wrapper;
+		}
+
 		error = LTNSDataAccessCreateNested(&child, wrapper->data_access, term);
 		if (error)
 		{
@@ -102,7 +130,8 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 		}
 		child_wrapper->data_access = child;
 		child_wrapper->parent = self;
-		ret = Data_Wrap_Struct(cDataAccess, ltns_da_mark, ltns_da_free, child_wrapper);
+		/* Wrap or possibly rewrap the child */
+		ret = Data_Wrap_Struct(cDataAccess, ltns_da_mark, free_func, child_wrapper);
 		rb_obj_call_init(ret, 0, NULL);
 	}
 	else
@@ -121,6 +150,63 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 	return ret;
 }
 
+VALUE ltns_da_set(VALUE self, VALUE key, VALUE new_value)
+{
+	Wrapper *wrapper;
+	Data_Get_Struct(self, Wrapper, wrapper);
+	char* key_cstr = StringValueCStr(key);
+	VALUE new_value_dumped = ltns_dump(cModule, new_value);
+	char* new_value_dumped_cstr = StringValueCStr(new_value_dumped);
+
+	LTNSTerm *term = NULL;
+	LTNSError error = LTNSTermCreateFromTNestring(&term, new_value_dumped_cstr);
+	ltns_da_raise_on_error(error);
+	error = LTNSDataAccessSet(wrapper->data_access, key_cstr, term);
+	LTNSTermDestroy(term);
+	ltns_da_raise_on_error(error);
+
+	return Qnil;
+}
+
+VALUE ltns_da_get_root_tnetstring(VALUE self)
+{
+	Wrapper *wrapper;
+	Data_Get_Struct(self, Wrapper, wrapper);
+
+	LTNSDataAccess *root = LTNSDataAccessGetRoot(wrapper->data_access);
+	LTNSTerm *term = NULL;
+	LTNSError error = LTNSDataAccessAsTerm(root, &term);
+	ltns_da_raise_on_error(error);
+	char* tnetstring;
+	size_t length;
+	LTNSTermGetTNetstring(term, &tnetstring, &length);
+	return rb_str_new(tnetstring, length);
+}
+
+VALUE ltns_da_get_tnetstring(VALUE self)
+{
+	Wrapper *wrapper;
+	Data_Get_Struct(self, Wrapper, wrapper);
+
+	LTNSTerm *term = NULL;
+	LTNSError error = LTNSDataAccessAsTerm(wrapper->data_access, &term);
+	ltns_da_raise_on_error(error);
+	char* tnetstring;
+	size_t length;
+	LTNSTermGetTNetstring(term, &tnetstring, &length);
+	return rb_str_new(tnetstring, length);
+}
+
+VALUE ltns_da_get_offset(VALUE self)
+{
+	Wrapper *wrapper;
+	Data_Get_Struct(self, Wrapper, wrapper);
+
+	size_t offset;
+	LTNSDataAccessOffset(wrapper->data_access, &offset);
+	return LL2NUM(offset);
+}
+
 void ltns_da_raise_on_error(LTNSError error)
 {
 	VALUE rb_Exception;
@@ -128,13 +214,15 @@ void ltns_da_raise_on_error(LTNSError error)
 	{
 	case 0: /* No error */
 		break;
+	case UNSUPPORTED_TOP_LEVEL_DATA_STRUCTURE:
+		rb_raise(eUnsupportedTopLevelDataStructure, "Unsupported top level structure");
 	case OUT_OF_MEMORY:
 		rb_Exception = rb_const_get(rb_cObject, rb_intern("NoMemoryError"));
 		rb_raise(rb_Exception, "Out of memory");
 	case INVALID_TNETSTRING:
-		rb_Exception = rb_const_get(rb_cObject, rb_intern("ArgumentError"));
-		rb_raise(rb_Exception, "Invalid TNetstring");
-	case UNSUPPORTED_TOP_LEVEL_DATA_STRUCTURE:
+		rb_raise(eInvalidTNetString, "Invalid TNetstring");
+	case INVALID_CHILD:
+		rb_raise(eInvalidScope, "Invalid scope");
 	default:
 		rb_Exception = rb_const_get(rb_cObject, rb_intern("ArgumentError"));
 		rb_raise(rb_Exception, "Invalid argument");
@@ -147,8 +235,16 @@ void Init_LazyTNetstring()
 	rb_define_module_function(cModule, "dump", ltns_dump, 1);
 	rb_define_module_function(cModule, "parse", ltns_parse_ruby, 1);
 
+	eInvalidTNetString = rb_define_class_under(cModule, "InvalidTNetString", rb_eException);
+	eUnsupportedTopLevelDataStructure = rb_define_class_under(cModule, "UnsupportedTopLevelDataStructure", rb_eException);
+	eInvalidScope = rb_define_class_under(cModule, "InvalidScope", rb_eException);
+
 	cDataAccess = rb_define_class_under(cModule, "DataAccess", rb_cObject);
 	rb_define_singleton_method(cDataAccess, "new", ltns_da_new, 1);
 	rb_define_method(cDataAccess, "initialize", ltns_da_init, 0);
 	rb_define_method(cDataAccess, "[]", ltns_da_get, 1);
+	rb_define_method(cDataAccess, "[]=", ltns_da_set, 2);
+	rb_define_method(cDataAccess, "data", ltns_da_get_root_tnetstring, 0);
+	rb_define_method(cDataAccess, "scoped_data", ltns_da_get_tnetstring, 0);
+	rb_define_method(cDataAccess, "offset", ltns_da_get_offset, 0);
 }

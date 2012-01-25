@@ -11,6 +11,7 @@ typedef struct _LTNSTerm LTNSTerm;
 LTNSError LTNSTermCreate( LTNSTerm **term, const char *payload, size_t payload_length, LTNSType type );
 
 LTNSError LTNSTermCreateNested( LTNSTerm **term, char *tnetstring, char *tnet_end  );
+LTNSError LTNSTermCreateFromTNestring( LTNSTerm **term, char *tnetstring );
 
 LTNSError LTNSTermDestroy( LTNSTerm *term );
 
