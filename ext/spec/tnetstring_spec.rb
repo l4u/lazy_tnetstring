@@ -1,6 +1,88 @@
 require 'spec_helper'
 
 describe LazyTNetstring do
+  context "parsing" do
+    context "integers" do
+      it "parses a positive integer" do
+        LazyTNetstring.parse('5:12345#').should == 12345
+      end
+
+      it "parses a negative integer" do
+        LazyTNetstring.parse('6:-12345#').should == -12345
+      end
+    end
+
+    context "floats" do
+      it "parses a positve float" do
+        LazyTNetstring.parse('3:3.5^').should == 3.5
+      end
+
+      it "parses a negative float" do
+        LazyTNetstring.parse('5:-3.14^').should == -3.14
+      end
+
+      it "parses a float with leading zeros" do
+        LazyTNetstring.parse('7:-000.14^').should == -0.14
+      end
+    end
+
+    it "parses an empty string" do
+      LazyTNetstring.parse('0:,').should == ""
+    end
+
+    it "parses a string" do
+      LazyTNetstring.parse('12:this is cool,').should == "this is cool"
+    end
+
+    it "parses to an empty array" do
+      LazyTNetstring.parse('0:]').should == []
+    end
+
+    it "parses an arbitrary array of ints and strings" do
+      LazyTNetstring.parse('24:5:12345#5:67890#5:xxxxx,]').should == [12345, 67890, 'xxxxx']
+    end
+
+    it "parses to an empty hash" do
+      LazyTNetstring.parse('0:}').should == {}
+    end
+
+    it "parses an arbitrary hash of ints, strings, and arrays" do
+      LazyTNetstring.parse('34:5:hello,22:11:12345678901#4:this,]}').should == {"hello" => [12345678901, 'this']}
+    end
+
+    it "parses a null" do
+      LazyTNetstring.parse('0:~').should == nil
+    end
+
+    it "parses a dictionary with a null value" do
+      LazyTNetstring.parse("9:3:key,0:~}").should == {"key" => nil}
+    end
+
+    it "raises on a lengthy null" do
+      expect { LazyTNetstring.parse('1:x~') }.to raise_error(ArgumentError)
+    end
+
+    it "parses a boolean" do
+      LazyTNetstring.parse('4:true!').should == true
+    end
+
+    it "raises on a bad boolean" do
+      expect { LazyTNetstring.parse('5:pants!') }.to raise_error(ArgumentError)
+    end
+
+    it "raises with negative length" do
+      expect { LazyTNetstring.parse("-1:asd,") }.to raise_error(ArgumentError)
+    end
+
+    it "raises with absurd length" do
+      expect { LazyTNetstring.parse("1000000000:asd,") }.to raise_error(ArgumentError)
+    end
+
+    it "raises on unknown type" do
+      expect { LazyTNetstring.parse('0:)') }.to raise_error(ArgumentError)
+    end
+  end
+
   context "dumping" do
     context "integers" do
       it "dumps a positive integer" do

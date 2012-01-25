@@ -7,12 +7,13 @@ int ltns_parse_num(const char* payload, size_t length, VALUE* out);
 int ltns_parse_float(const char* payload, size_t length, VALUE* out);
 int ltns_parse_bool(const char* payload, size_t length, VALUE* out);
 int ltns_parse_array(const char* payload, size_t length, VALUE* out);
-int ltns_parse_hash(const char* payload, size_t length, VALUE* out);
 int ltns_parse_nil(const char* payload, size_t length, VALUE* out);
+int ltns_parse(const char* tnetstring, const char* end, VALUE* out);
 
-VALUE ltns_parse_ruby(VALUE string)
+VALUE ltns_parse_ruby(VALUE module __attribute__ ((unused)), VALUE string)
 {
 	VALUE ret = Qnil;
+
 	if (TYPE(string) != T_STRING)
 	{
 		VALUE rb_eArgumentError = rb_const_get(rb_cObject, rb_intern("ArgumentError"));
@@ -20,27 +21,26 @@ VALUE ltns_parse_ruby(VALUE string)
 	}
 
 	char* tnetstring = StringValueCStr(string);
-	if (!ltns_parse(tnetstring, &ret))
+	char* tnet_end = tnetstring + RSTRING_LEN(string);
+	if (!ltns_parse(tnetstring, tnet_end, &ret))
 	{
-		free(tnetstring);
 		VALUE rb_eArgumentError = rb_const_get(rb_cObject, rb_intern("ArgumentError"));
 		rb_raise(rb_eArgumentError, "Invalid TNetstring");
 	}
-	free(tnetstring);
 	return ret;
 }
 
-int ltns_parse(const char* tnetstring, VALUE* out)
+int ltns_parse(const char* tnetstring, const char* end, VALUE* out)
 {
 	if (!tnetstring)
-		return Qnil;
+		return FALSE;
 
 	LTNSTerm *term = NULL;
-	LTNSError error = LTNSTermCreateNested(&term, tnetstring);
+	LTNSError error = LTNSTermCreateNested(&term, (char*)tnetstring, (char*)end);
 	if (error)
 	{
 		LTNSTermDestroy(term);
-		return Qnil;
+		return FALSE;
 	}
 	char* payload;
 	size_t payload_length;
@@ -53,18 +53,25 @@ int ltns_parse(const char* tnetstring, VALUE* out)
 	{
 	case LTNS_STRING:
 		ret = ltns_parse_string(payload, payload_length, out);
+		break;
 	case LTNS_INTEGER:
 		ret = ltns_parse_num(payload, payload_length, out);
+		break;
 	case LTNS_FLOAT:
 		ret = ltns_parse_float(payload, payload_length, out);
+		break;
 	case LTNS_BOOLEAN:
 		ret = ltns_parse_bool(payload, payload_length, out);
+		break;
 	case LTNS_LIST:
 		ret = ltns_parse_array(payload, payload_length, out);
+		break;
 	case LTNS_DICTIONARY:
-		ret = ltns_parse_hash(payload, payload_length, out);
+		ret = FALSE; // TODO: non-lazy parsing (ltns_parse_hash(payload, payload_length, out))
+		break;
 	case LTNS_NULL:
 		ret = ltns_parse_nil(payload, payload_length, out);
+		break;
 	default:
 		ret = FALSE;
 	}
@@ -101,6 +108,9 @@ int ltns_parse_float(const char* payload, size_t length, VALUE* out)
 int ltns_parse_bool(const char* payload, size_t length, VALUE* out)
 {
 	int ret = TRUE;
+	if (length != 4 && length != 5)
+		return FALSE;
+
 	if (strncmp(payload, "true", 4) == 0)
 	{
 		*out = Qtrue;
@@ -116,13 +126,37 @@ int ltns_parse_bool(const char* payload, size_t length, VALUE* out)
 	return ret;
 }
 
-int ltns_parse_array(const char* payload, size_t length, VALUE* out)
+int ltns_parse_array(const char* payload, size_t payload_length, VALUE* out)
 {
-}
+	size_t offset = 0;
+	LTNSTerm *term = NULL;
+	LTNSError error;
+	size_t length;
+	char *tnetstring;
 
-int ltns_parse_hash(const char* payload, size_t length, VALUE* out)
-{
-	/* Return a DataAccess */
+	VALUE array = rb_ary_new();
+
+	while (offset < payload_length)
+	{
+		error = LTNSTermCreateNested(&term, (char*)payload + offset, (char*)payload + payload_length);
+		LTNSTermGetTNetstring(term, &tnetstring, &length);
+		LTNSTermDestroy(term);
+		if (error)
+			return FALSE;
+
+		VALUE element;
+		int ok = ltns_parse(tnetstring, payload + payload_length, &element); 
+		if (!ok)
+			return FALSE;
+
+		rb_ary_push(array, element);
+
+		offset += length;
+	}
+
+	*out = array;
+
+	return TRUE;
 }
 
 int ltns_parse_nil(const char* payload, size_t length, VALUE* out)

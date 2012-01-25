@@ -223,7 +223,7 @@ int test_value_nested()
 	char *nested_data;
 
 	LTNSTerm *nested = NULL;
-	assert( 0 == LTNSTermCreateNested( &nested, data) );
+	assert( 0 == LTNSTermCreateNested( &nested, data, data + 6) );
 
 	LTNSTermGetTNetstring(subject, &nested_data, NULL);
 	LTNSTermDestroy(nested);

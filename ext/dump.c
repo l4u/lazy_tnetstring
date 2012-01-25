@@ -17,7 +17,7 @@ VALUE ltns_dump_nil(VALUE val);
 int ltns_dump_key_value( VALUE key, VALUE value, VALUE in);
 
 
-VALUE ltns_dump(VALUE module, VALUE val)
+VALUE ltns_dump(VALUE module __attribute__ ((unused)), VALUE val)
 {
 	VALUE rb_eArgumentError, ret;
 
@@ -102,7 +102,7 @@ VALUE ltns_dump_bool(VALUE val)
 	return ret;
 }
 
-VALUE ltns_dump_nil(VALUE val)
+VALUE ltns_dump_nil(VALUE val __attribute__ ((unused)))
 {
 	const char *nil = "0:~";
 	return rb_str_new( nil, strlen(nil));

@@ -48,7 +48,7 @@ LTNSError LTNSTermCreate( LTNSTerm **term, const char *payload, size_t payload_l
 	return 0;
 }
 
-LTNSError LTNSTermCreateNested( LTNSTerm **term, char *tnetstring )
+LTNSError LTNSTermCreateNested( LTNSTerm **term, char *tnetstring, char *tnet_end )
 {
 	LTNSError error;
 
@@ -66,7 +66,7 @@ LTNSError LTNSTermCreateNested( LTNSTerm **term, char *tnetstring )
 	(*term)->is_nested = TRUE;
 	(*term)->tnetstring = tnetstring;
 	// Parse the payload, length etc...
-	error = LTNSTermParse(*term);
+	error = LTNSTermParse(*term, tnet_end);
 	if (error)
 	{
 		free(*term);
@@ -145,7 +145,7 @@ LTNSError LTNSTermGetTNetstring( LTNSTerm *term, char** tnetstring, size_t* leng
 	return 0;
 }
 
-LTNSError LTNSTermParse(LTNSTerm* term)
+LTNSError LTNSTermParse(LTNSTerm* term, char* tnet_end)
 {
 	char* colon;
 	size_t prefix = 0;
@@ -154,6 +154,9 @@ LTNSError LTNSTermParse(LTNSTerm* term)
 		return INVALID_ARGUMENT;
 
 	prefix = (size_t)strtol(term->tnetstring, &colon, 10);
+	/* Prefix says payload longer than it is */
+	if (term->tnetstring + prefix >= tnet_end)
+		return INVALID_TNETSTRING;
 	/* No number found */
 	if (colon == term->tnetstring)
 		return INVALID_TNETSTRING;
