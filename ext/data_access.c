@@ -155,11 +155,22 @@ VALUE ltns_da_set(VALUE self, VALUE key, VALUE new_value)
 	Wrapper *wrapper;
 	Data_Get_Struct(self, Wrapper, wrapper);
 	char* key_cstr = StringValueCStr(key);
-	VALUE new_value_dumped = ltns_dump(cModule, new_value);
-	char* new_value_dumped_cstr = StringValueCStr(new_value_dumped);
 
+	LTNSError error = 0;
 	LTNSTerm *term = NULL;
-	LTNSError error = LTNSTermCreateFromTNestring(&term, new_value_dumped_cstr);
+	/* Get the tnetstring if new_value is a DataAccess */
+	if (strncmp(rb_class2name(CLASS_OF(new_value)), "DataAccess", 10) == 0)
+	{
+		Wrapper *wrapper;
+		Data_Get_Struct(new_value, Wrapper, wrapper);
+		error = LTNSDataAccessAsTerm(wrapper->data_access, &term);
+	}
+	else /* Other wise just try do dump new_value */
+	{
+		VALUE new_value_dumped = ltns_dump(cModule, new_value);
+		char* new_value_dumped_cstr = StringValueCStr(new_value_dumped);
+		error = LTNSTermCreateFromTNestring(&term, new_value_dumped_cstr);
+	}
 	ltns_da_raise_on_error(error);
 	error = LTNSDataAccessSet(wrapper->data_access, key_cstr, term);
 	LTNSTermDestroy(term);
