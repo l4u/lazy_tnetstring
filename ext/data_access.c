@@ -17,6 +17,7 @@ VALUE cModule;
 VALUE eInvalidTNetString;
 VALUE eUnsupportedTopLevelDataStructure;
 VALUE eInvalidScope;
+VALUE eKeyNotFound;
 
 VALUE ltns_da_init(VALUE self);
 void ltns_da_mark(void* ptr);
@@ -24,6 +25,7 @@ void ltns_da_free(void* ptr);
 VALUE ltns_da_new(VALUE class, VALUE dict);
 VALUE ltns_da_get(VALUE self, VALUE key);
 VALUE ltns_da_set(VALUE self, VALUE key, VALUE new_value);
+VALUE ltns_da_remove(VALUE self, VALUE key);
 VALUE ltns_da_get_tnetstring(VALUE self);
 VALUE ltns_da_get_offset(VALUE self);
 
@@ -156,10 +158,13 @@ VALUE ltns_da_set(VALUE self, VALUE key, VALUE new_value)
 	Data_Get_Struct(self, Wrapper, wrapper);
 	char* key_cstr = StringValueCStr(key);
 
+	if (new_value == Qnil)
+		return ltns_da_remove(self, key);
+
 	LTNSError error = 0;
 	LTNSTerm *term = NULL;
 	/* Get the tnetstring if new_value is a DataAccess */
-	if (strncmp(rb_class2name(CLASS_OF(new_value)), "DataAccess", 10) == 0)
+	if (strncmp(rb_class2name(CLASS_OF(new_value)), "LazyTNetstring::DataAccess", 26) == 0)
 	{
 		Wrapper *wrapper;
 		Data_Get_Struct(new_value, Wrapper, wrapper);
@@ -175,6 +180,19 @@ VALUE ltns_da_set(VALUE self, VALUE key, VALUE new_value)
 	error = LTNSDataAccessSet(wrapper->data_access, key_cstr, term);
 	LTNSTermDestroy(term);
 	ltns_da_raise_on_error(error);
+
+	return Qnil;
+}
+
+VALUE ltns_da_remove(VALUE self, VALUE key)
+{
+	Wrapper *wrapper;
+	Data_Get_Struct(self, Wrapper, wrapper);
+	char* key_cstr = StringValueCStr(key);
+
+	LTNSError error = LTNSDataAccessRemove(wrapper->data_access, key_cstr);
+	if (error != KEY_NOT_FOUND)
+		ltns_da_raise_on_error(error);
 
 	return Qnil;
 }
@@ -234,6 +252,8 @@ void ltns_da_raise_on_error(LTNSError error)
 		rb_raise(eInvalidTNetString, "Invalid TNetstring");
 	case INVALID_CHILD:
 		rb_raise(eInvalidScope, "Invalid scope");
+	case KEY_NOT_FOUND:
+		rb_raise(eKeyNotFound, "Key not found");
 	default:
 		rb_Exception = rb_const_get(rb_cObject, rb_intern("ArgumentError"));
 		rb_raise(rb_Exception, "Invalid argument");
@@ -249,12 +269,14 @@ void Init_LazyTNetstring()
 	eInvalidTNetString = rb_define_class_under(cModule, "InvalidTNetString", rb_eException);
 	eUnsupportedTopLevelDataStructure = rb_define_class_under(cModule, "UnsupportedTopLevelDataStructure", rb_eException);
 	eInvalidScope = rb_define_class_under(cModule, "InvalidScope", rb_eException);
+	eKeyNotFound = rb_define_class_under(cModule, "KeyNotFound", rb_eException);
 
 	cDataAccess = rb_define_class_under(cModule, "DataAccess", rb_cObject);
 	rb_define_singleton_method(cDataAccess, "new", ltns_da_new, 1);
 	rb_define_method(cDataAccess, "initialize", ltns_da_init, 0);
 	rb_define_method(cDataAccess, "[]", ltns_da_get, 1);
 	rb_define_method(cDataAccess, "[]=", ltns_da_set, 2);
+	rb_define_method(cDataAccess, "remove", ltns_da_remove, 1);
 	rb_define_method(cDataAccess, "data", ltns_da_get_root_tnetstring, 0);
 	rb_define_method(cDataAccess, "scoped_data", ltns_da_get_tnetstring, 0);
 	rb_define_method(cDataAccess, "offset", ltns_da_get_offset, 0);

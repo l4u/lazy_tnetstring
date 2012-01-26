@@ -26,6 +26,7 @@ LTNSError LTNSDataAccessOffset(LTNSDataAccess* data_access, size_t* offset);
 
 LTNSError LTNSDataAccessGet(LTNSDataAccess* data_access, const char* key, LTNSTerm** term);
 LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTerm* term);
+LTNSError LTNSDataAccessRemove(LTNSDataAccess* data_access, const char* key);
 
 LTNSError LTNSDataAccessAsTerm(LTNSDataAccess* data_access, LTNSTerm** term);
 
