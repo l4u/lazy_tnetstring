@@ -259,21 +259,9 @@ LTNSError LTNSDataAccessSet(LTNSDataAccess* data_access, const char* key, LTNSTe
 	error = LTNSDataAccessGet(data_access, key, &old_term);
 	if (!error && old_term)
 	{
-		LTNSType type;
-		error = LTNSTermGetPayloadType(term, &type);
-		// For remove
-		if (type == LTNS_NULL)
-		{
-			error = LTNSDataAccessRemove(data_access, key);
-			LTNSTermDestroy(old_term);
-			RETURN_VAL_IF(error);
-		}
-		else // For update
-		{
-			error = LTNSDataAccessUpdate(data_access, key, old_term, term);
-			LTNSTermDestroy(old_term);
-			RETURN_VAL_IF(error);
-		}
+		error = LTNSDataAccessUpdate(data_access, key, old_term, term);
+		LTNSTermDestroy(old_term);
+		RETURN_VAL_IF(error);
 	}
 	else if (error == KEY_NOT_FOUND) // For add new
 	{
