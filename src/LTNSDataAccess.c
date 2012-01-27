@@ -21,7 +21,7 @@ static LTNSError LTNSDataAccessAddChild(LTNSDataAccess* data_access, LTNSDataAcc
 static LTNSError LTNSDataAccessFindKeyPosition(LTNSDataAccess* data_access, const char* key, char** position, char** next);
 
 static long LTNSDataAccessGetTotalLengthDelta(LTNSDataAccess* data_access, long length_delta);
-static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long length_delta, LTNSDataAccess* root, long *total_length_delta);
+static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long length_delta, long prefix_length_deltas, LTNSDataAccess* root, long *total_length_delta);
 static LTNSError LTNSDataAccessUpdateOffsets(LTNSDataAccess* data_access, long offset_delta, char* point_of_change);
 static LTNSError LTNSDataAccessUpdateTNetstrings(LTNSDataAccess* data_access, LTNSDataAccess* root);
 
@@ -323,7 +323,7 @@ LTNSError LTNSDataAccessRemove(LTNSDataAccess* data_access, const char* key)
 	LTNSDataAccess *root = LTNSDataAccessGetRoot(data_access);
 	long length_delta =  key_position - (value_position + value_length);
 	long total_length_delta = 0;
-	error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, root, &total_length_delta);
+	error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, 0, root, &total_length_delta);
 	RETURN_VAL_IF(error);
 
 	key_position += (total_length_delta - length_delta);
@@ -389,7 +389,7 @@ static LTNSError LTNSDataAccessUpdate(LTNSDataAccess* data_access, const char* k
 		size_t old_offset = data_access->offset;
 		long total_length_delta = 0;
 		LTNSDataAccess *root = LTNSDataAccessGetRoot(data_access);
-		error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, root, &total_length_delta);
+		error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, 0, root, &total_length_delta);
 		RETURN_VAL_IF(error);
 
 		// Step 1 memmove for shorter value
@@ -474,11 +474,12 @@ static LTNSError LTNSDataAccessInsertLonger(LTNSDataAccess *data_access, const c
 	}
 
 	// Step 1 update prefixes and offsets
-	error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, root, &total_length_delta);
+	error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, 0, root, &total_length_delta);
 	RETURN_VAL_IF(error);
 
 	// new_position may have shifted due to longer prefixes
-	new_position += total_length_delta - length_delta;
+	long total_prefix_deltas = total_length_delta - length_delta;
+	new_position += total_prefix_deltas;
 
 	// Step 2 memmove tail
 	char* tail = new_position + old_length;
@@ -633,7 +634,7 @@ static long LTNSDataAccessGetTotalLengthDelta(LTNSDataAccess* data_access, long 
 
 }
 
-static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long length_delta, LTNSDataAccess* root, long *total_length_delta)
+static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long length_delta, long prefix_length_deltas, LTNSDataAccess* root, long *total_length_delta)
 {
 	if (!data_access || length_delta == 0)
 		return INVALID_ARGUMENT;
@@ -651,7 +652,9 @@ static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long 
 	// Shift all following data
 	if (prefix_length_delta != 0)
 	{
-		size_t shift_length = (root->tnetstring + root->length + 1) - colon;
+		// root->length may be inaccurate because of shifts in
+		// previous recursions, so we need to add all previous shifts
+		size_t shift_length = (root->tnetstring + root->length + prefix_length_deltas + 1) - colon;
 		memmove(colon + prefix_length_delta, colon, shift_length);
 	}
 
@@ -670,7 +673,7 @@ static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long 
 	}
 
 	if (IS_CHILD(data_access))
-		return LTNSDataAccessUpdatePrefixes(data_access->parent, length_delta + prefix_length_delta, root, total_length_delta);
+		return LTNSDataAccessUpdatePrefixes(data_access->parent, length_delta + prefix_length_delta, prefix_length_deltas + prefix_length_delta, root, total_length_delta);
 	else
 	{
 		*total_length_delta = length_delta + prefix_length_delta;
