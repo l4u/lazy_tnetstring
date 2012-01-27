@@ -8,6 +8,8 @@ test/term_test
 test/data_access_test
 *dSYM
 
+data/original
+
 AUTHORS
 COPYING
 ChangeLog
