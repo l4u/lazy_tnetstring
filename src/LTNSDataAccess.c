@@ -6,7 +6,7 @@
 #define MIN_HASH_LENGTH 3 // "0:}"
 #define IS_ROOT(x) ((x)->offset == 0)
 #define IS_CHILD(x) ((x)->offset > 0)
-#define IS_ORPHAN(x) ((x)->parent == NULL && IS_CHILD(x))
+#define IS_ORPHAN(x) ((x)->parent == NULL)
 
 static LTNSError LTNSDataAccessAdd(LTNSDataAccess* data_access, const char* key, LTNSTerm* term);
 static LTNSError LTNSDataAccessUpdate(LTNSDataAccess* data_access, const char* key, LTNSTerm* old_term, LTNSTerm* new_term);
@@ -157,10 +157,10 @@ LTNSError LTNSDataAccessDestroy(LTNSDataAccess* data_access)
 		node = data_access->children;
 		while (node)
 		{
+			/* Orphan the child */
+			node->child->parent = NULL;
 			to_delete = node;
 			node = node->next;
-			to_delete->child->parent = NULL;
-			//LTNSDataAccessDestroy(to_delete->child);
 			free(to_delete);
 		}
 	}
@@ -744,6 +744,7 @@ static LTNSChildNode* LTNSDataAccessFindChild(LTNSDataAccess* data_access, LTNSD
 
 	return NULL;
 }
+
 static LTNSChildNode* LTNSDataAccessFindChildAt(LTNSDataAccess* data_access, char* position)
 {
 	LTNSChildNode *node = data_access->children;
@@ -769,11 +770,13 @@ static int LTNSDataAccessIsChildValid(LTNSDataAccess* data_access)
 	{
 		if (!LTNSDataAccessFindChild(parent, child))
 			return FALSE;
+		if (IS_ROOT(parent))
+			return TRUE;
 		child = parent;
 		parent = child->parent;
 	}
 
-	return TRUE;
+	return FALSE;
 }
 
 static void LTNSDataAccessDeleteChildAt(LTNSDataAccess* data_access, char* position)
@@ -784,6 +787,8 @@ static void LTNSDataAccessDeleteChildAt(LTNSDataAccess* data_access, char* posit
 	{
 		if (node->child->tnetstring == position)
 		{
+			/* Orphan the child by setting it's parent to NULL */
+			node->child->parent = NULL;
 			if (prev)
 			{
 				prev->next = node->next;
