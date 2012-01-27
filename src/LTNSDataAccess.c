@@ -162,7 +162,7 @@ LTNSError LTNSDataAccessDestroy(LTNSDataAccess* data_access)
 	/* Only free if the number of references are 0 */
 	data_access->ref_count--;
 	if (data_access->ref_count > 0)
-		return INVALID_ARGUMENT;
+		return 0;
 
 	if (data_access->children)
 	{
