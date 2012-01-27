@@ -51,7 +51,7 @@ void ltns_da_free(void* ptr)
 
 void ltns_da_free_wrapper(void* ptr)
 {
-	/* Don't free a rewrapped DataAccess */
+	/* Don't free a rewrapped DataAccess, only free the wrapper */
 	Wrapper *wrapper = (Wrapper*)ptr;
 	free(wrapper);
 }
@@ -209,6 +209,7 @@ VALUE ltns_da_get_root_tnetstring(VALUE self)
 	char* tnetstring;
 	size_t length;
 	LTNSTermGetTNetstring(term, &tnetstring, &length);
+	LTNSTermDestroy(term);
 	return rb_str_new(tnetstring, length);
 }
 
@@ -223,6 +224,7 @@ VALUE ltns_da_get_tnetstring(VALUE self)
 	char* tnetstring;
 	size_t length;
 	LTNSTermGetTNetstring(term, &tnetstring, &length);
+	LTNSTermDestroy(term);
 	return rb_str_new(tnetstring, length);
 }
 
