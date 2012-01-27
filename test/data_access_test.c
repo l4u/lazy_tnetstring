@@ -255,6 +255,7 @@ int test_create_with_parent()
 	assert(first->next == NULL);
 
 	assert(!LTNSDataAccessDestroy(parent));
+	assert(!LTNSDataAccessDestroy(data_access));
 	return 1;
 }
 
@@ -324,6 +325,7 @@ int test_get_nested()
 	term = get_term(inner, "inner");
 	assert(check_term(term, "value", 5, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(inner));
 	assert(!LTNSDataAccessDestroy(data_access));
 	assert(!LTNSTermDestroy(term));
 	return 1;
@@ -346,6 +348,7 @@ int test_get_unknown_nested()
 	assert(error == KEY_NOT_FOUND);
 	assert(term == NULL);
 
+	assert(!LTNSDataAccessDestroy(inner));
 	assert(!LTNSDataAccessDestroy(data_access));
 	return 1;
 }
@@ -403,6 +406,7 @@ int test_set_nested_same_length()
 	inner = new_nested_data_access(data_access, term);
 	assert(set_and_check(inner, "foo", "baz", 3, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(inner));
 	assert(!LTNSDataAccessDestroy(data_access));
 	assert(!LTNSTermDestroy(term));
 	return 1;
@@ -420,6 +424,7 @@ int test_set_nested_longer()
 	inner = new_nested_data_access(data_access, term);
 	assert(set_and_check(inner, "foo", "foobar", 6, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(inner));
 	assert(!LTNSDataAccessDestroy(data_access));
 	assert(!LTNSTermDestroy(term));
 	return 1;
@@ -437,6 +442,7 @@ int test_set_nested_shorter()
 	inner = new_nested_data_access(data_access, term);
 	assert(set_and_check(inner, "foo", "bar", 3, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(inner));
 	assert(!LTNSDataAccessDestroy(data_access));
 	assert(!LTNSTermDestroy(term));
 	return 1;
@@ -456,6 +462,7 @@ int test_set_multiple()
 	inner = new_nested_data_access(data_access, term);
 	assert(set_and_check(inner, "foo", "foobar", 6, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(inner));
 	assert(!LTNSDataAccessDestroy(data_access));
 	assert(!LTNSTermDestroy(term));
 	return 1;
@@ -478,6 +485,7 @@ int test_set_multiple_scope()
 	assert(set_and_check(data_access, "key1", "foobar", 6, LTNS_STRING));
 	assert(set_and_check(data_access, "key2", "foobar", 6, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(inner));
 	assert(!LTNSDataAccessDestroy(data_access));
 	assert(!LTNSTermDestroy(term));
 	return 1;
@@ -502,6 +510,7 @@ int test_set_multiple_scope_interleaved()
 	assert(set_and_check(data_access, "key2", "foobar", 6, LTNS_STRING));
 	assert(set_and_check(inner, "key2", "foobar", 6, LTNS_STRING));
 
+	assert(!LTNSDataAccessDestroy(inner));
 	assert(!LTNSDataAccessDestroy(data_access));
 	assert(!LTNSTermDestroy(term));
 	return 1;
@@ -543,9 +552,10 @@ int test_set_invalidating_scope()
 	error = LTNSDataAccessGet(level2, "level3", &term);
 	assert(error == INVALID_CHILD);
 	assert(term == NULL);
-	/* NOTE: Dangling children must be manually destroyed */
-	assert(!LTNSDataAccessDestroy(level2));
 
+	assert(!LTNSDataAccessDestroy(level1));
+	assert(!LTNSDataAccessDestroy(level2));
+	assert(!LTNSDataAccessDestroy(level3));
 	assert(!LTNSDataAccessDestroy(data_access));
 	return 1;
 }
