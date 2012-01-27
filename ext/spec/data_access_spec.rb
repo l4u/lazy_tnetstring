@@ -503,6 +503,17 @@ module LazyTNetstring
           child2.data.should == data
         end
       end
+
+      context "when parsing a string containing null bytes" do
+        let(:data)          { TNetstring.dump({ key => null_string}) }
+        let(:null_string)   { "\000aaa\000\000\000aaa\000" }
+        let(:key)           { "key" }
+
+        it "should not truncate the payload" do
+          subject.data.should == data;
+          subject[key].should == null_string
+        end
+      end
     end
 
   end
