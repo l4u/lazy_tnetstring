@@ -105,6 +105,7 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 
 	LTNSType type;
 	LTNSTermGetPayloadType(term, &type);
+	/* Return a DataAccess object if the value is a dictionary */
 	if (type == LTNS_DICTIONARY)
 	{
 		LTNSDataAccess *child = NULL;
@@ -138,6 +139,7 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 	}
 	else
 	{
+		/* If it is not a dictionary parse the tnetstring into a ruby object */
 		char* tnetstring;
 		size_t length;
 		LTNSTermGetTNetstring(term, &tnetstring, &length);
@@ -195,6 +197,35 @@ VALUE ltns_da_remove(VALUE self, VALUE key)
 		ltns_da_raise_on_error(error);
 
 	return Qnil;
+}
+
+VALUE ltns_da_increment_value(VALUE self, VALUE key, long delta)
+{
+	VALUE value = ltns_da_get(self, key);
+	/* If key doesn't exist set it to zero */
+	if (value == Qnil)
+	{
+		value = LL2NUM(0);
+		ltns_da_set(self, key, value);
+	}
+
+	if (TYPE(value) == T_FIXNUM || TYPE(value) == T_BIGNUM)
+	{
+		long long lvalue = NUM2LL(value);
+		lvalue += delta;
+		return ltns_da_set(self, key, LL2NUM(lvalue));
+	}
+
+	return Qnil;
+}
+
+VALUE ltns_da_increment_value_ruby(VALUE self, VALUE key)
+{
+	return ltns_da_increment_value(self, key, 1);
+}
+VALUE ltns_da_decrement_value_ruby(VALUE self, VALUE key)
+{
+	return ltns_da_increment_value(self, key, -1);
 }
 
 VALUE ltns_da_get_root_tnetstring(VALUE self)
@@ -279,6 +310,8 @@ void Init_LazyTNetstring()
 	rb_define_method(cDataAccess, "[]", ltns_da_get, 1);
 	rb_define_method(cDataAccess, "[]=", ltns_da_set, 2);
 	rb_define_method(cDataAccess, "remove", ltns_da_remove, 1);
+	rb_define_method(cDataAccess, "increment_value", ltns_da_increment_value_ruby, 1);
+	rb_define_method(cDataAccess, "decrement_value", ltns_da_decrement_value_ruby, 1);
 	rb_define_method(cDataAccess, "data", ltns_da_get_root_tnetstring, 0);
 	rb_define_method(cDataAccess, "scoped_data", ltns_da_get_tnetstring, 0);
 	rb_define_method(cDataAccess, "offset", ltns_da_get_offset, 0);
