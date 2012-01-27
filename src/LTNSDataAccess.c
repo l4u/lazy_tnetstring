@@ -350,7 +350,11 @@ LTNSError LTNSDataAccessRemove(LTNSDataAccess* data_access, const char* key)
 	error = LTNSDataAccessReallocTNetstring(root, root->length + 1);
 	RETURN_VAL_IF(error);
 
-	/* update offsets for length change */
+	/* Find key_position again after possible move by realloc */
+	error = LTNSDataAccessFindKeyPosition(data_access, key, &key_position, &value_position);
+	RETURN_VAL_IF(error);
+
+	/* Update offsets for every child after key_position due to length change */
 	error = LTNSDataAccessUpdateOffsets(root, length_delta, key_position);
 	return error;
 }
