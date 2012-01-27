@@ -104,5 +104,5 @@ for filename in ARGV do
 	File.open( File.basename( filename, '.json' ) + '.tnet', "w" ).write(new_tnet);
 
 	# debug
-	puts 'done writing "' + filename + "'"
+	puts 'done obfruscating "./' + File.basename(filename, '.json') + ".*'"
 end
