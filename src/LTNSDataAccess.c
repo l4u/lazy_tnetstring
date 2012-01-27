@@ -34,6 +34,7 @@ static LTNSError LTNSDataAccessTermOffset(LTNSDataAccess* data_access, LTNSTerm*
 
 struct _LTNSDataAccess
 {
+	unsigned int ref_count;
 	char* tnetstring;
 	size_t length; // NOTE: tnetstring + length points to the char *after* the type
 	size_t offset; // NOTE: global offset, i.e. in relation to parent
@@ -89,6 +90,7 @@ static LTNSError LTNSDataAccessCreatePrivate(LTNSDataAccess** data_access,
 	(*data_access)->offset = 0;
 	(*data_access)->parent = NULL;
 	(*data_access)->children = NULL;
+	(*data_access)->ref_count = 1;
 
 	return 0;
 }
@@ -129,6 +131,8 @@ LTNSError LTNSDataAccessCreateNested( LTNSDataAccess **child, LTNSDataAccess *pa
 	if (node)
 	{
 		*child = node->child;
+		/* Increase the reference count if we are returning a cached child */
+		(*child)->ref_count++;
 		return 0;
 	}
 
@@ -151,6 +155,14 @@ LTNSError LTNSDataAccessCreateNested( LTNSDataAccess **child, LTNSDataAccess *pa
 LTNSError LTNSDataAccessDestroy(LTNSDataAccess* data_access)
 {
 	LTNSChildNode *node, *to_delete;
+
+	if (!data_access)
+		return INVALID_ARGUMENT;
+
+	/* Only free if the number of references are 0 */
+	data_access->ref_count--;
+	if (data_access->ref_count > 0)
+		return INVALID_ARGUMENT;
 
 	if (data_access->children)
 	{
@@ -722,13 +734,6 @@ static LTNSError LTNSDataAccessUpdateTNetstrings(LTNSDataAccess* data_access, LT
 	}
 
 	return 0;
-}
-
-int LTNSDataAccessIsChildCached(LTNSDataAccess* data_access, LTNSTerm* term)
-{
-	char *tnetstring;
-	LTNSTermGetTNetstring(term, &tnetstring, NULL);
-	return LTNSDataAccessFindChildAt(data_access, tnetstring) != NULL;
 }
 
 static LTNSChildNode* LTNSDataAccessFindChild(LTNSDataAccess* data_access, LTNSDataAccess* child)

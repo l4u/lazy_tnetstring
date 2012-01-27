@@ -49,13 +49,6 @@ void ltns_da_free(void* ptr)
 	free(wrapper);
 }
 
-void ltns_da_free_wrapper(void* ptr)
-{
-	/* Don't free a rewrapped DataAccess, only free the wrapper */
-	Wrapper *wrapper = (Wrapper*)ptr;
-	free(wrapper);
-}
-
 VALUE ltns_da_new(VALUE class, VALUE tnetstring)
 {
 	if (TYPE(tnetstring) != T_STRING)
@@ -72,11 +65,8 @@ VALUE ltns_da_new(VALUE class, VALUE tnetstring)
 	LTNSError error = LTNSDataAccessCreate(&wrapper->data_access, RSTRING_PTR(tnetstring), RSTRING_LEN(tnetstring));
 	if (error)
 	{
-		if (wrapper->data_access)
-		{
-			LTNSDataAccessDestroy(wrapper->data_access);
-			free(wrapper);
-		}
+		LTNSDataAccessDestroy(wrapper->data_access);
+		free(wrapper);
 		ltns_da_raise_on_error(error);
 	}
 
@@ -109,15 +99,6 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 	if (type == LTNS_DICTIONARY)
 	{
 		LTNSDataAccess *child = NULL;
-		/* Check which free function to use */
-		void (*free_func)(void*) = ltns_da_free;
-		if (LTNSDataAccessIsChildCached(wrapper->data_access, term))
-		{
-			/* The child at term->tnetstring already exists, so we
-			 * use a special free function as we "re-wrap" this
-			 * DataAccess */
-			free_func = ltns_da_free_wrapper;
-		}
 
 		error = LTNSDataAccessCreateNested(&child, wrapper->data_access, term);
 		if (error)
@@ -125,6 +106,7 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 			LTNSTermDestroy(term);
 			ltns_da_raise_on_error(error);
 		}
+
 		Wrapper *child_wrapper = (Wrapper*)calloc(sizeof(Wrapper), 1);
 		if (!child_wrapper)
 		{
@@ -133,8 +115,7 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 		}
 		child_wrapper->data_access = child;
 		child_wrapper->parent = self;
-		/* Wrap or possibly rewrap the child */
-		ret = Data_Wrap_Struct(cDataAccess, ltns_da_mark, free_func, child_wrapper);
+		ret = Data_Wrap_Struct(cDataAccess, ltns_da_mark, ltns_da_free, child_wrapper);
 		rb_obj_call_init(ret, 0, NULL);
 	}
 	else
