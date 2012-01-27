@@ -101,7 +101,7 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 		ltns_da_raise_on_error(error);
 	}
 
-	VALUE ret;
+	VALUE ret = Qnil;
 
 	LTNSType type;
 	LTNSTermGetPayloadType(term, &type);
