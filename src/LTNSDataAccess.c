@@ -663,7 +663,7 @@ static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long 
 	*(colon + prefix_length_delta) = ':';
 
 	// store new length in data access
-	data_access->length += length_delta;
+	data_access->length += length_delta + prefix_length_delta;
 
 	// Update child offsets/pointers for prefix length changes
 	if (prefix_length_delta != 0)
