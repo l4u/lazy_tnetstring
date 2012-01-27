@@ -32,5 +32,4 @@ LTNSError LTNSDataAccessAsTerm(LTNSDataAccess* data_access, LTNSTerm** term);
 
 LTNSDataAccess *LTNSDataAccessGetRoot( LTNSDataAccess* data_access );
 
-int LTNSDataAccessIsChildCached(LTNSDataAccess* data_access, LTNSTerm* term);
 #endif

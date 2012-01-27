@@ -41,8 +41,6 @@ int test_set_known_null();
 int test_set_unknown_null();
 int test_set_nested_null();
 
-// TODO: memcmp to memcmp, payload not null terminated! also check that LTNSTermGetPayloadLength is correct!
-
 test_case tests[] = 
 {
 	/* create */

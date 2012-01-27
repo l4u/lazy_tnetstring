@@ -6,7 +6,7 @@
 #define MIN_HASH_LENGTH 3 // "0:}"
 #define IS_ROOT(x) ((x)->offset == 0)
 #define IS_CHILD(x) ((x)->offset > 0)
-#define IS_ORPHAN(x) ((x)->parent == NULL && IS_CHILD(x))
+#define IS_ORPHAN(x) ((x)->parent == NULL)
 
 static LTNSError LTNSDataAccessAdd(LTNSDataAccess* data_access, const char* key, LTNSTerm* term);
 static LTNSError LTNSDataAccessUpdate(LTNSDataAccess* data_access, const char* key, LTNSTerm* old_term, LTNSTerm* new_term);
@@ -21,7 +21,7 @@ static LTNSError LTNSDataAccessAddChild(LTNSDataAccess* data_access, LTNSDataAcc
 static LTNSError LTNSDataAccessFindKeyPosition(LTNSDataAccess* data_access, const char* key, char** position, char** next);
 
 static long LTNSDataAccessGetTotalLengthDelta(LTNSDataAccess* data_access, long length_delta);
-static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long length_delta, LTNSDataAccess* root, long *total_length_delta);
+static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long length_delta, long prefix_length_deltas, LTNSDataAccess* root, long *total_length_delta);
 static LTNSError LTNSDataAccessUpdateOffsets(LTNSDataAccess* data_access, long offset_delta, char* point_of_change);
 static LTNSError LTNSDataAccessUpdateTNetstrings(LTNSDataAccess* data_access, LTNSDataAccess* root);
 
@@ -34,6 +34,7 @@ static LTNSError LTNSDataAccessTermOffset(LTNSDataAccess* data_access, LTNSTerm*
 
 struct _LTNSDataAccess
 {
+	unsigned int ref_count;
 	char* tnetstring;
 	size_t length; // NOTE: tnetstring + length points to the char *after* the type
 	size_t offset; // NOTE: global offset, i.e. in relation to parent
@@ -89,6 +90,7 @@ static LTNSError LTNSDataAccessCreatePrivate(LTNSDataAccess** data_access,
 	(*data_access)->offset = 0;
 	(*data_access)->parent = NULL;
 	(*data_access)->children = NULL;
+	(*data_access)->ref_count = 1;
 
 	return 0;
 }
@@ -129,6 +131,8 @@ LTNSError LTNSDataAccessCreateNested( LTNSDataAccess **child, LTNSDataAccess *pa
 	if (node)
 	{
 		*child = node->child;
+		/* Increase the reference count if we are returning a cached child */
+		(*child)->ref_count++;
 		return 0;
 	}
 
@@ -152,15 +156,23 @@ LTNSError LTNSDataAccessDestroy(LTNSDataAccess* data_access)
 {
 	LTNSChildNode *node, *to_delete;
 
+	if (!data_access)
+		return INVALID_ARGUMENT;
+
+	/* Only free if the number of references are 0 */
+	data_access->ref_count--;
+	if (data_access->ref_count > 0)
+		return INVALID_ARGUMENT;
+
 	if (data_access->children)
 	{
 		node = data_access->children;
 		while (node)
 		{
+			/* Orphan the child */
+			node->child->parent = NULL;
 			to_delete = node;
 			node = node->next;
-			to_delete->child->parent = NULL;
-			//LTNSDataAccessDestroy(to_delete->child);
 			free(to_delete);
 		}
 	}
@@ -323,7 +335,7 @@ LTNSError LTNSDataAccessRemove(LTNSDataAccess* data_access, const char* key)
 	LTNSDataAccess *root = LTNSDataAccessGetRoot(data_access);
 	long length_delta =  key_position - (value_position + value_length);
 	long total_length_delta = 0;
-	error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, root, &total_length_delta);
+	error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, 0, root, &total_length_delta);
 	RETURN_VAL_IF(error);
 
 	key_position += (total_length_delta - length_delta);
@@ -389,7 +401,7 @@ static LTNSError LTNSDataAccessUpdate(LTNSDataAccess* data_access, const char* k
 		size_t old_offset = data_access->offset;
 		long total_length_delta = 0;
 		LTNSDataAccess *root = LTNSDataAccessGetRoot(data_access);
-		error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, root, &total_length_delta);
+		error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, 0, root, &total_length_delta);
 		RETURN_VAL_IF(error);
 
 		// Step 1 memmove for shorter value
@@ -474,11 +486,12 @@ static LTNSError LTNSDataAccessInsertLonger(LTNSDataAccess *data_access, const c
 	}
 
 	// Step 1 update prefixes and offsets
-	error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, root, &total_length_delta);
+	error = LTNSDataAccessUpdatePrefixes(data_access, length_delta, 0, root, &total_length_delta);
 	RETURN_VAL_IF(error);
 
 	// new_position may have shifted due to longer prefixes
-	new_position += total_length_delta - length_delta;
+	long total_prefix_deltas = total_length_delta - length_delta;
+	new_position += total_prefix_deltas;
 
 	// Step 2 memmove tail
 	char* tail = new_position + old_length;
@@ -633,7 +646,7 @@ static long LTNSDataAccessGetTotalLengthDelta(LTNSDataAccess* data_access, long 
 
 }
 
-static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long length_delta, LTNSDataAccess* root, long *total_length_delta)
+static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long length_delta, long prefix_length_deltas, LTNSDataAccess* root, long *total_length_delta)
 {
 	if (!data_access || length_delta == 0)
 		return INVALID_ARGUMENT;
@@ -651,7 +664,9 @@ static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long 
 	// Shift all following data
 	if (prefix_length_delta != 0)
 	{
-		size_t shift_length = (root->tnetstring + root->length + 1) - colon;
+		// root->length may be inaccurate because of shifts in
+		// previous recursions, so we need to add all previous shifts
+		size_t shift_length = (root->tnetstring + root->length + prefix_length_deltas + 1) - colon;
 		memmove(colon + prefix_length_delta, colon, shift_length);
 	}
 
@@ -660,7 +675,7 @@ static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long 
 	*(colon + prefix_length_delta) = ':';
 
 	// store new length in data access
-	data_access->length += length_delta;
+	data_access->length += length_delta + prefix_length_delta;
 
 	// Update child offsets/pointers for prefix length changes
 	if (prefix_length_delta != 0)
@@ -670,7 +685,7 @@ static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long 
 	}
 
 	if (IS_CHILD(data_access))
-		return LTNSDataAccessUpdatePrefixes(data_access->parent, length_delta + prefix_length_delta, root, total_length_delta);
+		return LTNSDataAccessUpdatePrefixes(data_access->parent, length_delta + prefix_length_delta, prefix_length_deltas + prefix_length_delta, root, total_length_delta);
 	else
 	{
 		*total_length_delta = length_delta + prefix_length_delta;
@@ -721,13 +736,6 @@ static LTNSError LTNSDataAccessUpdateTNetstrings(LTNSDataAccess* data_access, LT
 	return 0;
 }
 
-int LTNSDataAccessIsChildCached(LTNSDataAccess* data_access, LTNSTerm* term)
-{
-	char *tnetstring;
-	LTNSTermGetTNetstring(term, &tnetstring, NULL);
-	return LTNSDataAccessFindChildAt(data_access, tnetstring) != NULL;
-}
-
 static LTNSChildNode* LTNSDataAccessFindChild(LTNSDataAccess* data_access, LTNSDataAccess* child)
 {
 	LTNSChildNode *node = data_access->children;
@@ -741,6 +749,7 @@ static LTNSChildNode* LTNSDataAccessFindChild(LTNSDataAccess* data_access, LTNSD
 
 	return NULL;
 }
+
 static LTNSChildNode* LTNSDataAccessFindChildAt(LTNSDataAccess* data_access, char* position)
 {
 	LTNSChildNode *node = data_access->children;
@@ -766,11 +775,13 @@ static int LTNSDataAccessIsChildValid(LTNSDataAccess* data_access)
 	{
 		if (!LTNSDataAccessFindChild(parent, child))
 			return FALSE;
+		if (IS_ROOT(parent))
+			return TRUE;
 		child = parent;
 		parent = child->parent;
 	}
 
-	return TRUE;
+	return FALSE;
 }
 
 static void LTNSDataAccessDeleteChildAt(LTNSDataAccess* data_access, char* position)
@@ -781,6 +792,8 @@ static void LTNSDataAccessDeleteChildAt(LTNSDataAccess* data_access, char* posit
 	{
 		if (node->child->tnetstring == position)
 		{
+			/* Orphan the child by setting it's parent to NULL */
+			node->child->parent = NULL;
 			if (prev)
 			{
 				prev->next = node->next;

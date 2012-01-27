@@ -399,5 +399,111 @@ module LazyTNetstring
       end
     end
 
+    describe "more complex test cases" do
+      subject           { data_access }
+      let(:data_access) { LazyTNetstring::DataAccess.new(data) }
+
+      context "when setting a deeply nested key" do
+        let(:data)      { TNetstring.dump({
+                            'front' => 'padding',
+                            'level1' => {
+                              'front' => 'padding',
+                              'level2' => {
+                                'front' => 'padding',
+                                'level3' => { key => old_value },
+                                'after' => { 'key' => 'value' },
+                                'end' => 'padding'
+                              },
+                              'after' => { 'key' => 'value' },
+                              'end' => 'padding'
+                            },
+                            'after' => { 'key' => 'value' },
+                            'end' => 'padding'
+                          })
+                        }
+        let(:new_data)  { TNetstring.dump({
+                            'front' => 'padding',
+                            'level1' => {
+                              'front' => 'padding',
+                              'level2' => {
+                                'front' => 'padding',
+                                'level3' => { key => new_value },
+                                'after' => { 'key' => 'value' },
+                                'end' => 'padding'
+                              },
+                              'after' => { 'key' => 'value' },
+                              'end' => 'padding'
+                            },
+                            'after' => { 'key' => 'value' },
+                            'end' => 'padding'
+                          })
+                        }
+        let(:old_value) { [] }
+        let(:new_value) { 'a' * 10000 }
+        let(:key)       { 'magic' }
+
+        it "should update the nested value and set correct offsets" do
+          subject['level1']['level2']['level3'][key] = new_value
+          subject.data.should == new_data
+          subject.offset.should == 0
+          subject['level1'].offset.should == 33
+          subject['level1']['level2'].offset.should == 66
+          subject['level1']['level2']['level3'].offset.should == 99
+          subject['after'].offset.should == 10215
+          subject['level1']['after'].offset.should == 10172
+          subject['level1']['level2']['after'].offset.should == 10129
+        end
+      end
+
+      context "when setting a key to itself" do
+        let(:data)      { TNetstring.dump({ key => 'x' * 100 }) }
+        let(:key)       { 'key' }
+
+        it "should work" do
+          subject[key] = subject[key]
+          subject.data.should == data
+        end
+      end
+
+      context "when copying a value to another key" do
+        let(:data)      { TNetstring.dump({ key => value }) }
+        let(:new_data)  { TNetstring.dump({ key => value, new_key => value }) }
+        let(:value)     { 'x' * 100 }
+        let(:key)       { 'key' }
+        let(:new_key)   { 'new_key' }
+
+        it "should not affect the old key" do
+          subject[new_key] = subject[key]
+          subject.data.should == new_data
+        end
+      end
+
+      context "when garbage collecting" do
+        let(:data)      { TNetstring.dump({ 'inner' => { key => value }}) }
+        let(:value)     { 'x' * 100 }
+        let(:key)       { 'key' }
+
+        it "should not not delete the parent of a referenced child" do
+          parent = LazyTNetstring::DataAccess.new data
+          child = parent['inner']
+          parent = nil
+          # Invoke GC a few times and try to mess up the memory
+          (1..100).each { GC.start }
+          (1..100).each { |i| LazyTNetstring::DataAccess.new TNetstring.dump({'key' * i => 'value' * i}) }
+          child.data.should == data
+        end
+        it "should not delete children with a live reference" do
+          parent = LazyTNetstring::DataAccess.new data
+          child = parent['inner']
+          child2 = parent['inner']
+          child = nil
+          # Invoke GC a few times and try to mess up the memory
+          (1..100).each { GC.start }
+          (1..100).each { |i| LazyTNetstring::DataAccess.new TNetstring.dump({'key' * i => 'value' * i}) }
+          child2.data.should == data
+        end
+      end
+    end
+
   end
 end

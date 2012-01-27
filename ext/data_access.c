@@ -49,13 +49,6 @@ void ltns_da_free(void* ptr)
 	free(wrapper);
 }
 
-void ltns_da_free_wrapper(void* ptr)
-{
-	/* Don't free a rewrapped DataAccess */
-	Wrapper *wrapper = (Wrapper*)ptr;
-	free(wrapper);
-}
-
 VALUE ltns_da_new(VALUE class, VALUE tnetstring)
 {
 	if (TYPE(tnetstring) != T_STRING)
@@ -72,11 +65,8 @@ VALUE ltns_da_new(VALUE class, VALUE tnetstring)
 	LTNSError error = LTNSDataAccessCreate(&wrapper->data_access, RSTRING_PTR(tnetstring), RSTRING_LEN(tnetstring));
 	if (error)
 	{
-		if (wrapper->data_access)
-		{
-			LTNSDataAccessDestroy(wrapper->data_access);
-			free(wrapper);
-		}
+		LTNSDataAccessDestroy(wrapper->data_access);
+		free(wrapper);
 		ltns_da_raise_on_error(error);
 	}
 
@@ -101,22 +91,14 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 		ltns_da_raise_on_error(error);
 	}
 
-	VALUE ret;
+	VALUE ret = Qnil;
 
 	LTNSType type;
 	LTNSTermGetPayloadType(term, &type);
+	/* Return a DataAccess object if the value is a dictionary */
 	if (type == LTNS_DICTIONARY)
 	{
 		LTNSDataAccess *child = NULL;
-		/* Check which free function to use */
-		void (*free_func)(void*) = ltns_da_free;
-		if (LTNSDataAccessIsChildCached(wrapper->data_access, term))
-		{
-			/* The child at term->tnetstring already exists, so we
-			 * use a special free function as we "re-wrap" this
-			 * DataAccess */
-			free_func = ltns_da_free_wrapper;
-		}
 
 		error = LTNSDataAccessCreateNested(&child, wrapper->data_access, term);
 		if (error)
@@ -124,6 +106,7 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 			LTNSTermDestroy(term);
 			ltns_da_raise_on_error(error);
 		}
+
 		Wrapper *child_wrapper = (Wrapper*)calloc(sizeof(Wrapper), 1);
 		if (!child_wrapper)
 		{
@@ -132,12 +115,12 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 		}
 		child_wrapper->data_access = child;
 		child_wrapper->parent = self;
-		/* Wrap or possibly rewrap the child */
-		ret = Data_Wrap_Struct(cDataAccess, ltns_da_mark, free_func, child_wrapper);
+		ret = Data_Wrap_Struct(cDataAccess, ltns_da_mark, ltns_da_free, child_wrapper);
 		rb_obj_call_init(ret, 0, NULL);
 	}
 	else
 	{
+		/* If it is not a dictionary parse the tnetstring into a ruby object */
 		char* tnetstring;
 		size_t length;
 		LTNSTermGetTNetstring(term, &tnetstring, &length);
@@ -197,6 +180,35 @@ VALUE ltns_da_remove(VALUE self, VALUE key)
 	return Qnil;
 }
 
+VALUE ltns_da_increment_value(VALUE self, VALUE key, long delta)
+{
+	VALUE value = ltns_da_get(self, key);
+	/* If key doesn't exist set it to zero */
+	if (value == Qnil)
+	{
+		value = LL2NUM(0);
+		ltns_da_set(self, key, value);
+	}
+
+	if (TYPE(value) == T_FIXNUM || TYPE(value) == T_BIGNUM)
+	{
+		long long lvalue = NUM2LL(value);
+		lvalue += delta;
+		return ltns_da_set(self, key, LL2NUM(lvalue));
+	}
+
+	return Qnil;
+}
+
+VALUE ltns_da_increment_value_ruby(VALUE self, VALUE key)
+{
+	return ltns_da_increment_value(self, key, 1);
+}
+VALUE ltns_da_decrement_value_ruby(VALUE self, VALUE key)
+{
+	return ltns_da_increment_value(self, key, -1);
+}
+
 VALUE ltns_da_get_root_tnetstring(VALUE self)
 {
 	Wrapper *wrapper;
@@ -209,6 +221,7 @@ VALUE ltns_da_get_root_tnetstring(VALUE self)
 	char* tnetstring;
 	size_t length;
 	LTNSTermGetTNetstring(term, &tnetstring, &length);
+	LTNSTermDestroy(term);
 	return rb_str_new(tnetstring, length);
 }
 
@@ -223,6 +236,7 @@ VALUE ltns_da_get_tnetstring(VALUE self)
 	char* tnetstring;
 	size_t length;
 	LTNSTermGetTNetstring(term, &tnetstring, &length);
+	LTNSTermDestroy(term);
 	return rb_str_new(tnetstring, length);
 }
 
@@ -277,6 +291,8 @@ void Init_LazyTNetstring()
 	rb_define_method(cDataAccess, "[]", ltns_da_get, 1);
 	rb_define_method(cDataAccess, "[]=", ltns_da_set, 2);
 	rb_define_method(cDataAccess, "remove", ltns_da_remove, 1);
+	rb_define_method(cDataAccess, "increment_value", ltns_da_increment_value_ruby, 1);
+	rb_define_method(cDataAccess, "decrement_value", ltns_da_decrement_value_ruby, 1);
 	rb_define_method(cDataAccess, "data", ltns_da_get_root_tnetstring, 0);
 	rb_define_method(cDataAccess, "scoped_data", ltns_da_get_tnetstring, 0);
 	rb_define_method(cDataAccess, "offset", ltns_da_get_offset, 0);
