@@ -654,7 +654,7 @@ static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long 
 	// Update child offsets/pointers for prefix length changes
 	if (prefix_length_delta != 0)
 	{
-		LTNSError error = LTNSDataAccessUpdateOffsets(data_access, prefix_length_delta, data_access->tnetstring);
+		LTNSError error = LTNSDataAccessUpdateOffsets(root, prefix_length_delta, data_access->tnetstring);
 		RETURN_VAL_IF(error);
 	}
 

@@ -504,6 +504,53 @@ module LazyTNetstring
         end
       end
 
+      context "when updating a short nested key" do
+        let(:inner)   { { 'key' => old_value } }
+        let(:data)    { TNetstring.dump({
+                          'first' => inner,
+                          'second' => inner.merge({'nested' => inner }),
+                          'third' => inner
+                        })
+                      }
+        let(:old_value) { 'x' }
+        let(:new_value) { 'x' * 100 }
+        
+        it "should update offsets for children correctly" do
+          first = subject['first']
+          second = subject['second']
+          nested = second['nested']
+          third = subject['third']
+          second['key'] = new_value
+          first.scoped_data.should == TNetstring.dump(inner)
+          third.scoped_data.should == TNetstring.dump(inner)
+          nested.offset.should > second.offset
+          nested.scoped_data.should == TNetstring.dump(inner)
+        end
+      end
+      context "when updating a long nested key" do
+        let(:inner)   { { 'key' => old_value } }
+        let(:data)    { TNetstring.dump({
+                          'first' => inner,
+                          'second' => inner.merge({'nested' => inner}),
+                          'third' => inner
+                        })
+                      }
+        let(:old_value) { 'x' * 100 }
+        let(:new_value) { 'x' }
+        
+        it "should update offsets for children correctly" do
+          first = subject['first']
+          second = subject['second']
+          nested = second['nested']
+          third = subject['third']
+          second['key'] = new_value
+          first.scoped_data.should == TNetstring.dump(inner)
+          third.scoped_data.should == TNetstring.dump(inner)
+          nested.offset.should > second.offset
+          nested.scoped_data.should == TNetstring.dump(inner)
+        end
+      end
+
       context "when parsing a string containing null bytes" do
         let(:data)          { TNetstring.dump({ key => null_string}) }
         let(:null_string)   { "\000aaa\000\000\000aaa\000" }
