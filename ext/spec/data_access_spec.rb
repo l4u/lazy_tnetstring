@@ -443,15 +443,21 @@ module LazyTNetstring
         let(:key)       { 'magic' }
 
         it "should update the nested value and set correct offsets" do
-          subject['level1']['level2']['level3'][key] = new_value
+          level1 = subject['level1']
+          after = subject['after']
+          after1 = level1['after']
+          level2 = level1['level2']
+          after2 = level2['after']
+          level3 = level2['level3']
+          level3[key] = new_value
           subject.data.should == new_data
           subject.offset.should == 0
-          subject['level1'].offset.should == 33
-          subject['level1']['level2'].offset.should == 66
-          subject['level1']['level2']['level3'].offset.should == 99
-          subject['after'].offset.should == 10215
-          subject['level1']['after'].offset.should == 10172
-          subject['level1']['level2']['after'].offset.should == 10129
+          level1.offset.should == 33
+          level2.offset.should == 66
+          level3.offset.should == 99
+          after.offset.should == 10215
+          after1.offset.should == 10172
+          after2.offset.should == 10129
         end
       end
 
