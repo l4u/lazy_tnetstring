@@ -307,6 +307,8 @@ LTNSError LTNSDataAccessAsTerm(LTNSDataAccess* data_access, LTNSTerm** term)
 	LTNSError error;
 	if (!data_access || !term)
 		return INVALID_ARGUMENT;
+	if (IS_CHILD(data_access) && !LTNSDataAccessIsChildValid(data_access))
+		return INVALID_CHILD;
 
 	error = LTNSTermCreateNested(term, data_access->tnetstring, data_access->tnetstring + data_access->length);
 	RETURN_VAL_IF(error)
@@ -316,16 +318,28 @@ LTNSError LTNSDataAccessAsTerm(LTNSDataAccess* data_access, LTNSTerm** term)
 
 LTNSError LTNSDataAccessRemove(LTNSDataAccess* data_access, const char* key)
 {
+	if (!data_access || !key)
+		return INVALID_ARGUMENT;
+	if (IS_CHILD(data_access) && !LTNSDataAccessIsChildValid(data_access))
+		return INVALID_CHILD;
+
 	/* Find the key position */
 	char* key_position = NULL;
 	char* value_position = NULL;
 	LTNSError error = LTNSDataAccessFindKeyPosition(data_access, key, &key_position, &value_position);
 	RETURN_VAL_IF(error);
 
-	/* Find length of value so we know where it ends */
 	LTNSTerm *value_term = NULL;
 	error = LTNSTermCreateNested(&value_term, value_position, data_access->tnetstring + data_access->length);
 	RETURN_VAL_IF(error);
+
+	/* Check if we are removing a child */
+	LTNSType type = LTNS_UNDEFINED;
+	error = LTNSTermGetPayloadType(value_term, &type);
+	if (type == LTNS_DICTIONARY)
+		LTNSDataAccessDeleteChildAt(data_access, value_position);
+
+	/* Find length of value so we know where it ends */
 	size_t value_length = 0;
 	error = LTNSTermGetTNetstring(value_term, NULL, &value_length);
 	LTNSTermDestroy(value_term);

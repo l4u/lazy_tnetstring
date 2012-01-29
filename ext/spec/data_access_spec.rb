@@ -557,6 +557,51 @@ module LazyTNetstring
         end
       end
 
+      context "when removing a cached hash before another cached hash" do
+        let(:inner)   { { 'key' => 'value' } }
+        let(:data)    { TNetstring.dump({
+                          'first' => inner,
+                          'second' => inner 
+                        })
+                      }
+        it "should update the offset of the trailing child" do
+          first = subject['first']
+          second = subject['second']
+          subject.remove('first')
+          second.scoped_data.should == TNetstring.dump(inner)
+          second.offset.should == 12
+        end
+        it "should raise InvalidScope when using the removed hash" do
+          first = subject['first']
+          subject.remove('first')
+          expect { first['key'] }.to raise_error(LazyTNetstring::InvalidScope)
+          expect { first['key'] = 'new' }.to raise_error(LazyTNetstring::InvalidScope)
+          expect { first.remove('key') }.to raise_error(LazyTNetstring::InvalidScope)
+          expect { first.data }.to raise_error(LazyTNetstring::InvalidScope)
+          expect { first.scoped_data }.to raise_error(LazyTNetstring::InvalidScope)
+        end
+      end
+
+      context "when the prefix length of nested hash changes but not on the top-level" do
+        let(:inner)   { { 'key' => old_value } }
+        let(:data)    { TNetstring.dump({
+                          'key' => 'padding' * 100,
+                          'first' => inner,
+                          'second' => inner 
+                        })
+                      }
+        let(:old_value) { 'x' }
+        let(:new_value) { 'x' * 100 }
+        it "should update the offset of the trailing child" do
+          first = subject['first']
+          second = subject['second']
+          old_offset = second.offset
+          first['key'] = new_value
+          second.scoped_data.should == TNetstring.dump(inner)
+          second.offset.should == 848
+        end
+      end
+
       context "when parsing a string containing null bytes" do
         let(:data)          { TNetstring.dump({ key => null_string}) }
         let(:null_string)   { "\000aaa\000\000\000aaa\000" }

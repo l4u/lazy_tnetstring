@@ -215,6 +215,8 @@ VALUE ltns_da_get_root_tnetstring(VALUE self)
 	Data_Get_Struct(self, Wrapper, wrapper);
 
 	LTNSDataAccess *root = LTNSDataAccessGetRoot(wrapper->data_access);
+	if (!root)
+		ltns_da_raise_on_error(INVALID_CHILD);
 	LTNSTerm *term = NULL;
 	LTNSError error = LTNSDataAccessAsTerm(root, &term);
 	ltns_da_raise_on_error(error);
