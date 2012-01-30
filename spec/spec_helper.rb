@@ -1,5 +1,6 @@
+$:.unshift(File.join(File.dirname(__FILE__), '..', 'ext'))
 require 'rspec'
-require './LazyTNetstring'
+require 'LazyTNetstring'
 
 RSpec.configure do |config|
   config.mock_with :rspec
