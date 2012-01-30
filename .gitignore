@@ -1,5 +1,5 @@
 *.swp
-*Makefile
+ext/Makefile
 test/term_test
 test/data_access_test
 *dSYM
