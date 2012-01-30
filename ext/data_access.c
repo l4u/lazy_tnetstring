@@ -282,10 +282,10 @@ void Init_LazyTNetstring()
 	rb_define_module_function(cModule, "dump", ltns_dump, 1);
 	rb_define_module_function(cModule, "parse", ltns_parse_ruby, 1);
 
-	eInvalidTNetString = rb_define_class_under(cModule, "InvalidTNetString", rb_eException);
-	eUnsupportedTopLevelDataStructure = rb_define_class_under(cModule, "UnsupportedTopLevelDataStructure", rb_eException);
-	eInvalidScope = rb_define_class_under(cModule, "InvalidScope", rb_eException);
-	eKeyNotFound = rb_define_class_under(cModule, "KeyNotFound", rb_eException);
+	eInvalidTNetString = rb_define_class_under(cModule, "InvalidTNetString", rb_eStandardError);
+	eUnsupportedTopLevelDataStructure = rb_define_class_under(cModule, "UnsupportedTopLevelDataStructure", rb_eStandardError);
+	eInvalidScope = rb_define_class_under(cModule, "InvalidScope", rb_eStandardError);
+	eKeyNotFound = rb_define_class_under(cModule, "KeyNotFound", rb_eStandardError);
 
 	cDataAccess = rb_define_class_under(cModule, "DataAccess", rb_cObject);
 	rb_define_singleton_method(cDataAccess, "new", ltns_da_new, 1);
