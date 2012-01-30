@@ -1,5 +1,5 @@
 Gem::Specification.new do |gem|
-  gem.name = "LazyTNetstring"
+  gem.name = "lazy_tnetstring"
   gem.homepage = "http://github.com/chrisavl/CLazyTNetstring"
   gem.license = "MIT"
   gem.summary = 'Lazy TNetstring C implementation.'

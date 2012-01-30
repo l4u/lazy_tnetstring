@@ -1,5 +1,7 @@
 *.swp
 ext/Makefile
+ext/lazy_tnetstring.so
+ext/lazy_tnetstring.bundle
 test/term_test
 test/data_access_test
 *dSYM

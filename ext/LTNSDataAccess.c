@@ -659,7 +659,7 @@ static LTNSError LTNSDataAccessUpdatePrefixes(LTNSDataAccess* data_access, long 
 	}
 
 	// Write new prefix
-	snprintf(data_access->tnetstring, new_prefix_length + 1, "%lu", payload_length + length_delta);
+	snprintf(data_access->tnetstring, new_prefix_length + 1, "%zu", (size_t)(payload_length + length_delta));
 	*(colon + prefix_length_delta) = ':';
 
 	// store new length in data access
