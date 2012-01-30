@@ -1,4 +1,4 @@
-CFLAGS = -I../ext/include -std=c99 -Wall -Werror
+CFLAGS = -I../ext/include -std=c99 -Wall -Werror -lm
 
 all: term_test data_access_test
 
