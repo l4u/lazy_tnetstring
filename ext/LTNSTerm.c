@@ -36,7 +36,7 @@ LTNSError LTNSTermCreate( LTNSTerm **term, const char *payload, size_t payload_l
 	size_t length =		prefix_length + 1 + payload_length + 1;
 	(*term)->length = length;
 	(*term)->tnetstring = (char*) calloc(length, sizeof(char));
-	int printed_chars = snprintf((*term)->tnetstring, length, "%lu:", payload_length );
+	int printed_chars = snprintf((*term)->tnetstring, length, "%zu:", payload_length );
 	memcpy((*term)->tnetstring + printed_chars, payload, payload_length);
 
 	(*term)->payload = (*term)->tnetstring + prefix_length + 1;
