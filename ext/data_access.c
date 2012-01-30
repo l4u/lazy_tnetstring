@@ -276,7 +276,7 @@ void ltns_da_raise_on_error(LTNSError error)
 	}
 }
 
-void Init_LazyTNetstring()
+void Init_lazy_tnetstring()
 {
 	cModule = rb_define_module("LazyTNetstring");
 	rb_define_module_function(cModule, "dump", ltns_dump, 1);

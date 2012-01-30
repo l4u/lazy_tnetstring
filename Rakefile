@@ -11,7 +11,7 @@ require 'rake'
 
 require 'rspec/core/rake_task'
 RSpec::Core::RakeTask.new(:spec) do |t|
-  # Hack to build bundle needed for tests
+  # Hack to build binary needed for tests
   system 'cd ext && ruby extconf.rb && make 2>&1 > /dev/null'
 
   t.rspec_opts = ["--color"]
@@ -33,7 +33,7 @@ RDoc::Task.new do |rdoc|
   version = File.exist?('VERSION') ? File.read('VERSION') : ""
 
   rdoc.rdoc_dir = 'rdoc'
-  rdoc.title = "LazyTNetstring #{version}"
+  rdoc.title = "lazy_tnetstring #{version}"
   rdoc.rdoc_files.include('README*')
   rdoc.rdoc_files.include('ext/**/*.c')
 end

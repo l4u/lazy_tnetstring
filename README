@@ -21,7 +21,7 @@ that resembles the following Ruby Hash
 
 you can interact with it like this
 
-    >> require 'LazyTNetstring'
+    >> require 'lazy_tnetstring'
     => true
 
     >> da = LazyTNetstring::DataAccess.new(data)
