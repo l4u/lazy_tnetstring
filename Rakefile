@@ -1,8 +1,19 @@
-require 'rake'
 require 'rubygems'
+require 'bundler'
+begin
+  Bundler.setup(:default, :development)
+rescue Bundler::BundlerError => e
+  $stderr.puts e.message
+  $stderr.puts "Run `bundle install` to install missing gems"
+  exit e.status_code
+end
+require 'rake'
 
 require 'rspec/core/rake_task'
 RSpec::Core::RakeTask.new(:spec) do |t|
+  # Hack to build bundle needed for tests
+  system 'cd ext && ruby extconf.rb && make 2>&1 > /dev/null'
+
   t.rspec_opts = ["--color"]
   t.fail_on_error = false
 end
@@ -16,28 +27,6 @@ RSpec::Core::RakeTask.new(:test) do |t|
 end
 
 task :default => :spec
-
-require 'jeweler'
-Jeweler::Tasks.new do |gem|
-  gem.name = "LazyTNetstring"
-  gem.homepage = "http://github.com/chrisavl/CLazyTNetstring"
-  gem.license = "MIT"
-  gem.summary = 'Lazy TNetstring C implementation.'
-  gem.description = 'A fast C-based lazy TNetstring data accessor.'
-  gem.email = "christian.lundgren@wooga.net"
-  gem.authors = ["Christian Lundgren"]
-  gem.test_files = `git ls-files -- {test,spec,features}/*`.split("\n")
-  gem.files = `git ls-files -- {ext,COPYING,README,VERSION}`.split("\n")
-  gem.version = File.exist?('VERSION') ? File.read('VERSION') : ""
-
-  gem.add_development_dependency 'tnetstring'
-  gem.add_development_dependency 'rake'
-  gem.add_development_dependency 'rspec', '~> 2'
-  gem.add_development_dependency 'autotest'
-  gem.add_development_dependency 'activesupport'
-  gem.add_development_dependency 'i18n'
-end
-Jeweler::RubygemsDotOrgTasks.new
 
 require 'rdoc/task'
 RDoc::Task.new do |rdoc|
