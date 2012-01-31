@@ -1,4 +1,5 @@
 #include <ruby.h>
+#include <st.h>
 
 #include "LTNS.h"
 
