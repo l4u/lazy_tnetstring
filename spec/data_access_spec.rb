@@ -655,5 +655,32 @@ module LazyTNetstring
       end
     end
 
+    describe "#each" do
+      subject           { data_access }
+      let(:data_access) { LazyTNetstring::DataAccess.new(data) }
+
+      context "for each on empty hash" do
+        let(:data) { TNetstring.dump({}) }
+
+        it "should be empty" do
+          subject.each { "should never enter block".should == nil }
+        end
+      end
+
+      context "for each on non-empty hash" do
+        let(:data) { TNetstring.dump({'key1' => 1, 'key2' => 2, 'key3' => 3}) }
+
+        it "should iterate over all key-value pairs" do
+          yields = 0
+          subject.each do |key, value|
+            yields += 1
+            key.should == "key#{value}"
+          end
+          yields.should == 3
+        end
+      end
+    end
+
+
   end
 end

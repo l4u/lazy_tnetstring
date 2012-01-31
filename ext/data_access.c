@@ -268,6 +268,54 @@ VALUE ltns_da_is_empty(VALUE self)
 	return Qfalse;
 }
 
+VALUE ltns_da_each(VALUE self)
+{
+	if (ltns_da_is_empty(self) == Qtrue)
+		return Qnil;
+
+	Wrapper *wrapper;
+	Data_Get_Struct(self, Wrapper, wrapper);
+
+	LTNSTerm *term = NULL;
+	LTNSError error = LTNSDataAccessAsTerm(wrapper->data_access, &term);
+	ltns_da_raise_on_error(error);
+	char* payload;
+	size_t payload_length;
+	LTNSTermGetPayload(term, &payload, &payload_length, NULL);
+	LTNSTermDestroy(term);
+	term = NULL;
+
+	size_t length, offset = 0;
+	char* tnetstring;
+
+	while (offset < payload_length)
+	{
+		error = LTNSTermCreateNested(&term, payload + offset, payload + payload_length);
+		LTNSTermGetTNetstring(term, &tnetstring, &length);
+		LTNSTermDestroy(term);
+		ltns_da_raise_on_error(error);
+
+		VALUE key;
+		if (!ltns_parse(tnetstring, tnetstring + length, &key))
+			ltns_da_raise_on_error(INVALID_TNETSTRING);
+		offset += length;
+
+		error = LTNSTermCreateNested(&term, payload + offset, payload + payload_length);
+		LTNSTermGetTNetstring(term, &tnetstring, &length);
+		LTNSTermDestroy(term);
+		ltns_da_raise_on_error(error);
+
+		VALUE value;
+		if (!ltns_parse(tnetstring, tnetstring + length, &value))
+			ltns_da_raise_on_error(INVALID_TNETSTRING);
+		offset += length;
+
+		VALUE pair = rb_ary_new3(2, key, value);
+		rb_yield(pair);
+	}
+	return Qnil;
+}
+
 static void ltns_da_raise_on_error(LTNSError error)
 {
 	VALUE rb_Exception;
@@ -320,6 +368,7 @@ void Init_lazy_tnetstring()
 	eKeyNotFound = rb_define_class_under(cModule, "KeyNotFound", rb_eStandardError);
 
 	cDataAccess = rb_define_class_under(cModule, "DataAccess", rb_cObject);
+	rb_include_module(cDataAccess, rb_mEnumerable);
 	rb_define_singleton_method(cDataAccess, "new", ltns_da_new, -1);
 	rb_define_method(cDataAccess, "initialize", ltns_da_init, 0);
 	rb_define_method(cDataAccess, "[]", ltns_da_get, 1);
@@ -331,4 +380,6 @@ void Init_lazy_tnetstring()
 	rb_define_method(cDataAccess, "scoped_data", ltns_da_get_tnetstring, 0);
 	rb_define_method(cDataAccess, "offset", ltns_da_get_offset, 0);
 	rb_define_method(cDataAccess, "empty?", ltns_da_is_empty, 0);
+	rb_define_method(cDataAccess, "each", ltns_da_each, 0);
+	rb_define_alias(cDataAccess, "each_pair", "each");
 }

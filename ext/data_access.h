@@ -16,5 +16,6 @@ VALUE ltns_da_remove(VALUE self, VALUE key);
 VALUE ltns_da_get_tnetstring(VALUE self);
 VALUE ltns_da_get_offset(VALUE self);
 VALUE ltns_da_is_empty(VALUE self);
+VALUE ltns_da_each(VALUE self);
 
 #endif
