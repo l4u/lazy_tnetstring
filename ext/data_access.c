@@ -1,16 +1,9 @@
-#include <ruby.h>
 
 #include "LTNS.h"
 
-extern VALUE ltns_dump(VALUE module, VALUE val);
-extern int ltns_parse(const char* tnetstring, const char* end, VALUE* out);
-extern VALUE ltns_parse_ruby(VALUE string);
-
-typedef struct _Wrapper
-{
-	VALUE parent;
-	LTNSDataAccess* data_access;
-} Wrapper;
+#include "data_access.h"
+#include "parse.h"
+#include "dump.h"
 
 VALUE cDataAccess;
 VALUE cModule;
@@ -19,19 +12,14 @@ VALUE eUnsupportedTopLevelDataStructure;
 VALUE eInvalidScope;
 VALUE eKeyNotFound;
 
-VALUE ltns_da_init(VALUE self);
-void ltns_da_mark(void* ptr);
-void ltns_da_free(void* ptr);
-VALUE ltns_da_new(int argc, VALUE* argv, VALUE class);
-VALUE ltns_da_get(VALUE self, VALUE key);
-VALUE ltns_da_set(VALUE self, VALUE key, VALUE new_value);
-VALUE ltns_da_remove(VALUE self, VALUE key);
-VALUE ltns_da_get_tnetstring(VALUE self);
-VALUE ltns_da_get_offset(VALUE self);
-VALUE ltns_da_is_empty(VALUE self);
+typedef struct _Wrapper
+{
+	VALUE parent;
+	LTNSDataAccess* data_access;
+} Wrapper;
 
-void ltns_da_raise_on_error(LTNSError error);
 
+static void ltns_da_raise_on_error(LTNSError error);
 static VALUE ltns_da_key2str(VALUE key);
 
 
@@ -275,7 +263,7 @@ VALUE ltns_da_is_empty(VALUE self)
 	return Qfalse;
 }
 
-void ltns_da_raise_on_error(LTNSError error)
+static void ltns_da_raise_on_error(LTNSError error)
 {
 	VALUE rb_Exception;
 	switch (error)

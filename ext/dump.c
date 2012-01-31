@@ -1,21 +1,21 @@
-#include <ruby.h>
 #include <st.h>
 
 #include "LTNS.h"
+
+#include "dump.h"
 
 #ifndef FLOAT_DECIMAL_PRECISION
 #define FLOAT_DECIMAL_PRECISION 3
 #endif
 
-VALUE ltns_dump_num(VALUE val);
-VALUE ltns_dump_bool(VALUE val);
-VALUE ltns_dump_string(VALUE val);
-VALUE ltns_dump_float(VALUE val);
-VALUE ltns_dump_array(VALUE val);
-VALUE ltns_dump_hash(VALUE val);
-VALUE ltns_dump_nil(VALUE val);
+typedef struct
+{
+	char *payload;
+	size_t length;
+} LTNSPayloadInfo;
 
-int ltns_dump_key_value( VALUE key, VALUE value, VALUE in);
+
+static int ltns_dump_key_value(VALUE key, VALUE value, VALUE in);
 
 
 VALUE ltns_dump(VALUE module __attribute__ ((unused)), VALUE val)
@@ -221,11 +221,6 @@ VALUE ltns_dump_array(VALUE val)
 	return ret;
 }
 
-typedef struct
-{
-	char *payload;
-	size_t length;
-} LTNSPayloadInfo;
 
 VALUE ltns_dump_hash(VALUE val)
 {
@@ -255,7 +250,7 @@ VALUE ltns_dump_hash(VALUE val)
 	return ret;
 }
 
-int ltns_dump_key_value( VALUE key, VALUE value, VALUE in)
+static int ltns_dump_key_value( VALUE key, VALUE value, VALUE in)
 {
 	LTNSPayloadInfo *info = (LTNSPayloadInfo*)in;
 	if( !info  )
