@@ -12,7 +12,6 @@ int ltns_parse_num(const char* payload, size_t length, VALUE* out);
 int ltns_parse_float(const char* payload, size_t length, VALUE* out);
 int ltns_parse_bool(const char* payload, size_t length, VALUE* out);
 int ltns_parse_array(const char* payload, size_t length, VALUE* out);
-int ltns_parse_hash(const char* payload, size_t payload_length, VALUE* out);
 int ltns_parse_nil(const char* payload, size_t length, VALUE* out);
 
 #endif

@@ -55,13 +55,18 @@ VALUE ltns_da_new(int argc, VALUE* argv, VALUE class)
 		ltns_da_raise_on_error(INVALID_ARGUMENT);
 	}
 
+	return ltns_da_new2(class, RSTRING_PTR(tnetstring), RSTRING_LEN(tnetstring));
+}
+
+VALUE ltns_da_new2(VALUE class, const char* tnetstring, size_t length)
+{
 	Wrapper *wrapper = calloc(1, sizeof(Wrapper));
 	if (!wrapper)
 	{
 		ltns_da_raise_on_error(OUT_OF_MEMORY);
 	}
 	wrapper->parent = Qnil;
-	LTNSError error = LTNSDataAccessCreate(&wrapper->data_access, RSTRING_PTR(tnetstring), RSTRING_LEN(tnetstring));
+	LTNSError error = LTNSDataAccessCreate(&wrapper->data_access, tnetstring, length);
 	if (error)
 	{
 		LTNSDataAccessDestroy(wrapper->data_access);

@@ -2,9 +2,11 @@
 
 #include "LTNS.h"
 
+#include "data_access.h"
 #include "parse.h"
 
 extern VALUE eInvalidTNetString;
+extern VALUE cDataAccess;
 
 VALUE ltns_parse_ruby(VALUE module __attribute__ ((unused)), VALUE string)
 {
@@ -37,6 +39,9 @@ int ltns_parse(const char* tnetstring, const char* end, VALUE* out)
 		LTNSTermDestroy(term);
 		return FALSE;
 	}
+	size_t tnetstring_length;
+	LTNSTermGetTNetstring(term, NULL, &tnetstring_length);
+
 	char* payload;
 	size_t payload_length;
 	LTNSType type;
@@ -62,8 +67,11 @@ int ltns_parse(const char* tnetstring, const char* end, VALUE* out)
 		ret = ltns_parse_array(payload, payload_length, out);
 		break;
 	case LTNS_DICTIONARY:
-		ret = ltns_parse_hash(payload, payload_length, out);
+	{
+		*out = ltns_da_new2(cDataAccess, tnetstring, tnetstring_length);
+		ret = TRUE;
 		break;
+	}
 	case LTNS_NULL:
 		ret = ltns_parse_nil(payload, payload_length, out);
 		break;
@@ -150,50 +158,6 @@ int ltns_parse_array(const char* payload, size_t payload_length, VALUE* out)
 	}
 
 	*out = array;
-
-	return TRUE;
-}
-
-int ltns_parse_hash(const char* payload, size_t payload_length, VALUE* out)
-{
-	size_t offset = 0;
-	LTNSTerm *term = NULL;
-	LTNSError error;
-	size_t length;
-	char *tnetstring;
-
-	VALUE hash = rb_hash_new();
-
-	while (offset < payload_length)
-	{
-		error = LTNSTermCreateNested(&term, (char*)payload + offset, (char*)payload + payload_length);
-		LTNSTermGetTNetstring(term, &tnetstring, &length);
-		LTNSTermDestroy(term);
-		if (error)
-			return FALSE;
-
-		VALUE key;
-		if (!ltns_parse(tnetstring, payload + payload_length, &key))
-			return FALSE;
-
-		offset += length;
-
-		error = LTNSTermCreateNested(&term, (char*)payload + offset, (char*)payload + payload_length);
-		LTNSTermGetTNetstring(term, &tnetstring, &length);
-		LTNSTermDestroy(term);
-		if (error)
-			return FALSE;
-
-		VALUE value;
-		if (!ltns_parse(tnetstring, payload + payload_length, &value))
-			return FALSE;
-
-		offset += length;
-
-		rb_hash_aset(hash, key, value);
-	}
-
-	*out = hash;
 
 	return TRUE;
 }
