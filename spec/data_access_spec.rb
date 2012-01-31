@@ -8,6 +8,22 @@ module LazyTNetstring
       subject           { data_access }
       let(:data_access) { LazyTNetstring::DataAccess.new(data) }
 
+      context 'for no argument to constructor' do
+        let(:data_access) { LazyTNetstring::DataAccess.new }
+
+        it 'should create an empty hash' do
+          subject.data.should == '0:}'
+        end
+      end
+
+      context 'when passing nil to constructor' do
+        let(:data) { nil }
+
+        it 'should create an empty hash' do
+          subject.data.should == '0:}'
+        end
+      end
+
       context 'for non-tnetstring compliant data' do
         let(:data) { '12345}' }
 

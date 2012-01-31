@@ -22,12 +22,13 @@ VALUE eKeyNotFound;
 VALUE ltns_da_init(VALUE self);
 void ltns_da_mark(void* ptr);
 void ltns_da_free(void* ptr);
-VALUE ltns_da_new(VALUE class, VALUE dict);
+VALUE ltns_da_new(int argc, VALUE argv, VALUE class);
 VALUE ltns_da_get(VALUE self, VALUE key);
 VALUE ltns_da_set(VALUE self, VALUE key, VALUE new_value);
 VALUE ltns_da_remove(VALUE self, VALUE key);
 VALUE ltns_da_get_tnetstring(VALUE self);
 VALUE ltns_da_get_offset(VALUE self);
+VALUE ltns_da_is_empty(VALUE self);
 
 void ltns_da_raise_on_error(LTNSError error);
 
@@ -52,8 +53,15 @@ void ltns_da_free(void* ptr)
 	free(wrapper);
 }
 
-VALUE ltns_da_new(VALUE class, VALUE tnetstring)
+VALUE ltns_da_new(int argc, VALUE argv, VALUE class)
 {
+	VALUE tnetstring = Qnil;
+	rb_scan_args(argc, argv, "01", &tnetstring);
+	if (tnetstring == Qnil)
+	{
+		tnetstring = rb_str_new2("0:}"); // Default to empty hash
+	}
+
 	if (TYPE(tnetstring) != T_STRING)
 	{
 		ltns_da_raise_on_error(INVALID_ARGUMENT);
@@ -319,7 +327,7 @@ void Init_lazy_tnetstring()
 	eKeyNotFound = rb_define_class_under(cModule, "KeyNotFound", rb_eStandardError);
 
 	cDataAccess = rb_define_class_under(cModule, "DataAccess", rb_cObject);
-	rb_define_singleton_method(cDataAccess, "new", ltns_da_new, 1);
+	rb_define_singleton_method(cDataAccess, "new", ltns_da_new, -1);
 	rb_define_method(cDataAccess, "initialize", ltns_da_init, 0);
 	rb_define_method(cDataAccess, "[]", ltns_da_get, 1);
 	rb_define_method(cDataAccess, "[]=", ltns_da_set, 2);
