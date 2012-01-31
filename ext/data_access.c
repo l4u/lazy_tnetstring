@@ -22,7 +22,7 @@ VALUE eKeyNotFound;
 VALUE ltns_da_init(VALUE self);
 void ltns_da_mark(void* ptr);
 void ltns_da_free(void* ptr);
-VALUE ltns_da_new(int argc, VALUE argv, VALUE class);
+VALUE ltns_da_new(int argc, VALUE* argv, VALUE class);
 VALUE ltns_da_get(VALUE self, VALUE key);
 VALUE ltns_da_set(VALUE self, VALUE key, VALUE new_value);
 VALUE ltns_da_remove(VALUE self, VALUE key);
@@ -53,7 +53,7 @@ void ltns_da_free(void* ptr)
 	free(wrapper);
 }
 
-VALUE ltns_da_new(int argc, VALUE argv, VALUE class)
+VALUE ltns_da_new(int argc, VALUE* argv, VALUE class)
 {
 	VALUE tnetstring = Qnil;
 	rb_scan_args(argc, argv, "01", &tnetstring);
