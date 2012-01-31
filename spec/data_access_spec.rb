@@ -614,5 +614,30 @@ module LazyTNetstring
       end
     end
 
+    describe "#empty?" do
+      subject           { data_access }
+      let(:data_access) { LazyTNetstring::DataAccess.new(data) }
+
+      context "when creating a empty hash" do
+        let(:data) { TNetstring.dump({}) }
+
+        it "should be empty" do
+          subject.empty?.should == true
+        end
+      end
+
+      context "when getting a nested a empty hash" do
+        let(:data) { TNetstring.dump({ key => {} }) }
+        let(:key)  { 'key' }
+
+        it "should return true for the nested" do
+          subject[key].empty?.should == true
+        end
+        it "should return false for the outer hash" do
+          subject.empty?.should == false
+        end
+      end
+    end
+
   end
 end

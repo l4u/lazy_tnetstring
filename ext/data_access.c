@@ -258,6 +258,15 @@ VALUE ltns_da_get_offset(VALUE self)
 	return LL2NUM(offset);
 }
 
+VALUE ltns_da_is_empty(VALUE self)
+{
+	VALUE scoped_data = ltns_da_get_tnetstring(self);
+	char* tnetstring = StringValueCStr(scoped_data);
+	if (strncmp(tnetstring, "0:}", 3) == 0)
+		return Qtrue;
+	return Qfalse;
+}
+
 void ltns_da_raise_on_error(LTNSError error)
 {
 	VALUE rb_Exception;
@@ -320,4 +329,5 @@ void Init_lazy_tnetstring()
 	rb_define_method(cDataAccess, "data", ltns_da_get_root_tnetstring, 0);
 	rb_define_method(cDataAccess, "scoped_data", ltns_da_get_tnetstring, 0);
 	rb_define_method(cDataAccess, "offset", ltns_da_get_offset, 0);
+	rb_define_method(cDataAccess, "empty?", ltns_da_is_empty, 0);
 }
