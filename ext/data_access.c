@@ -31,6 +31,9 @@ VALUE ltns_da_get_offset(VALUE self);
 
 void ltns_da_raise_on_error(LTNSError error);
 
+static VALUE ltns_da_key2str(VALUE key);
+
+
 VALUE ltns_da_init(VALUE self)
 {
 	return self;
@@ -79,6 +82,7 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 {
 	Wrapper *wrapper;
 	Data_Get_Struct(self, Wrapper, wrapper);
+	key = ltns_da_key2str(key);
 	char* key_cstr = StringValueCStr(key);
 
 	LTNSTerm *term = NULL;
@@ -139,6 +143,7 @@ VALUE ltns_da_set(VALUE self, VALUE key, VALUE new_value)
 {
 	Wrapper *wrapper;
 	Data_Get_Struct(self, Wrapper, wrapper);
+	key = ltns_da_key2str(key);
 	char* key_cstr = StringValueCStr(key);
 
 	if (new_value == Qnil)
@@ -171,6 +176,7 @@ VALUE ltns_da_remove(VALUE self, VALUE key)
 {
 	Wrapper *wrapper;
 	Data_Get_Struct(self, Wrapper, wrapper);
+	key = ltns_da_key2str(key);
 	char* key_cstr = StringValueCStr(key);
 
 	LTNSError error = LTNSDataAccessRemove(wrapper->data_access, key_cstr);
@@ -274,6 +280,22 @@ void ltns_da_raise_on_error(LTNSError error)
 		rb_Exception = rb_const_get(rb_cObject, rb_intern("ArgumentError"));
 		rb_raise(rb_Exception, "Invalid argument");
 	}
+}
+
+static VALUE ltns_da_key2str(VALUE key)
+{
+	VALUE str = key;
+
+	if (TYPE(key) == T_SYMBOL)
+	{
+		str = rb_sym_to_s(key);
+	}
+	else if (TYPE(key) != T_STRING)
+	{
+		str = rb_big2str(rb_hash(key), 10);
+	}
+
+	return str;
 }
 
 void Init_lazy_tnetstring()
