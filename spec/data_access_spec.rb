@@ -665,6 +665,9 @@ module LazyTNetstring
         it "should be empty" do
           subject.each { "should never enter block".should == nil }
         end
+        it "should throw error if no block is given" do
+            expect { subject.each }.to raise_error(ArgumentError)
+        end
       end
 
       context "for each on non-empty hash" do

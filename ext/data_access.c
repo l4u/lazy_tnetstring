@@ -271,6 +271,9 @@ VALUE ltns_da_is_empty(VALUE self)
 
 VALUE ltns_da_each(VALUE self)
 {
+	if (!rb_block_given_p())
+		rb_raise(rb_eArgError, "No block given!");
+
 	if (ltns_da_is_empty(self) == Qtrue)
 		return Qnil;
 
