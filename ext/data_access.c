@@ -21,6 +21,7 @@ typedef struct _Wrapper
 
 static void ltns_da_raise_on_error(LTNSError error);
 static VALUE ltns_da_key2str(VALUE key);
+static VALUE ltns_da_to_hash_helper(VALUE pair, VALUE hash);
 
 
 VALUE ltns_da_init(VALUE self)
@@ -316,6 +317,21 @@ VALUE ltns_da_each(VALUE self)
 	return Qnil;
 }
 
+static VALUE ltns_da_to_hash_helper(VALUE pair, VALUE hash)
+{
+	VALUE key = rb_ary_entry(pair, 0);
+	VALUE val = rb_ary_entry(pair, 1);
+	rb_hash_aset(hash, key, val);
+	return Qnil;
+}
+
+VALUE ltns_da_to_hash(VALUE self)
+{
+	VALUE hash = rb_hash_new();
+	rb_block_call(self, rb_intern("each"), 0, NULL, ltns_da_to_hash_helper, hash);
+	return hash;
+}
+
 static void ltns_da_raise_on_error(LTNSError error)
 {
 	VALUE rb_Exception;
@@ -382,4 +398,5 @@ void Init_lazy_tnetstring()
 	rb_define_method(cDataAccess, "empty?", ltns_da_is_empty, 0);
 	rb_define_method(cDataAccess, "each", ltns_da_each, 0);
 	rb_define_alias(cDataAccess, "each_pair", "each");
+	rb_define_method(cDataAccess, "to_hash", ltns_da_to_hash, 0);
 }

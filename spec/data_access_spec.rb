@@ -681,6 +681,39 @@ module LazyTNetstring
       end
     end
 
+    describe "#to_hash" do
+      subject           { data_access }
+      let(:data_access) { LazyTNetstring::DataAccess.new(data) }
+
+      context "for empty data access" do
+        let(:data)      { TNetstring.dump(expected) }
+        let(:expected)  { {} }
+
+        it "should return a empty hash" do
+          subject.to_hash.should == expected
+        end
+      end
+
+      context "for non-empty data access" do
+        let(:data)      { TNetstring.dump(expected) }
+        let(:expected)  { { 'key' => 'value' } }
+
+        it "should return a correct hash" do
+          subject.to_hash.should == expected
+        end
+      end
+
+      context "for data access containing a nested hash" do
+        let(:data)      { TNetstring.dump(expected) }
+        let(:expected)  { { 'outer' => inner } }
+        let(:inner)     { { 'key' => 'value' } }
+
+        it "should return a correct hash" do
+          subject.to_hash['outer'].data.should == TNetstring.dump(inner)
+        end
+      end
+    end
+
 
   end
 end
