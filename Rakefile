@@ -12,18 +12,18 @@ require 'rake'
 require 'rspec/core/rake_task'
 RSpec::Core::RakeTask.new(:spec) do |t|
   # Hack to build binary needed for tests
-  system 'cd ext && ruby extconf.rb && make 2>&1 > /dev/null'
+  sh 'cd ext && ruby extconf.rb && make clean && make 2>&1 > /dev/null'
 
   t.rspec_opts = ["--color"]
   t.fail_on_error = false
 end
 
 RSpec::Core::RakeTask.new(:test) do |t|
-  system('cd test && make 2>&1 > /dev/null') || raise('Failed to build C tests')
+  sh('cd test && make 2>&1 > /dev/null') || raise('Failed to build C tests')
   puts 'Running data_access_test'
-  system('./test/data_access_test') || raise('C tests failed')
+  sh('./test/data_access_test') || raise('C tests failed')
   puts 'Running term_test'
-  system('./test/term_test') || raise('C tests failed')
+  sh('./test/term_test') || raise('C tests failed')
 end
 
 task :default => :spec
