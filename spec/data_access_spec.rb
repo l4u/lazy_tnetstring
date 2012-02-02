@@ -711,8 +711,9 @@ module LazyTNetstring
         let(:expected)  { { 'outer' => inner } }
         let(:inner)     { { 'key' => 'value' } }
 
-        it "should return a correct hash" do
-          subject.to_hash['outer'].data.should == TNetstring.dump(inner)
+        it "should return a correct hash with a nested data access" do
+          subject.to_hash['outer'].data.should == data
+          subject.to_hash['outer'].scoped_data.should == TNetstring.dump(inner)
         end
       end
     end
