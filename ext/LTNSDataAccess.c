@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <limits.h>
 
 #define MIN_HASH_LENGTH 3 // "0:}"
 #define IS_ROOT(x) ((x)->offset == 0)
@@ -153,11 +154,19 @@ LTNSError LTNSDataAccessCreateNested( LTNSDataAccess **child, LTNSDataAccess *pa
 	return 0;
 }
 
+LTNSError LTNSDataAccessRef(LTNSDataAccess* data_access)
+{
+	if (!data_access || data_access->ref_count == UINT_MAX)
+		return INVALID_ARGUMENT;
+	data_access->ref_count++;
+	return 0;
+}
+
 LTNSError LTNSDataAccessDestroy(LTNSDataAccess* data_access)
 {
 	LTNSChildNode *node, *to_delete;
 
-	if (!data_access)
+	if (!data_access || data_access->ref_count == 0)
 		return INVALID_ARGUMENT;
 
 	/* Only free if the number of references are 0 */

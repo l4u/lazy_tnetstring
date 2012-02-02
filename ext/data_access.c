@@ -24,9 +24,17 @@ static VALUE ltns_da_key2str(VALUE key);
 static VALUE ltns_da_to_hash_helper(VALUE pair, VALUE hash);
 
 
-VALUE ltns_da_init(VALUE self)
+VALUE ltns_da_alloc(VALUE class)
 {
-	return self;
+	Wrapper *wrapper = calloc(1, sizeof(Wrapper));
+	if (!wrapper)
+		ltns_da_raise_on_error(OUT_OF_MEMORY);
+
+	wrapper->parent = Qnil;
+	wrapper->data_access = NULL;
+
+	VALUE obj = Data_Wrap_Struct(class, ltns_da_mark, ltns_da_free, wrapper);
+	return obj;
 }
 
 void ltns_da_mark(void* ptr)
@@ -38,11 +46,12 @@ void ltns_da_mark(void* ptr)
 void ltns_da_free(void* ptr)
 {
 	Wrapper *wrapper = (Wrapper*)ptr;
-	LTNSDataAccessDestroy(wrapper->data_access);
+	if (wrapper->data_access)
+		LTNSDataAccessDestroy(wrapper->data_access);
 	free(wrapper);
 }
 
-VALUE ltns_da_new(int argc, VALUE* argv, VALUE class)
+VALUE ltns_da_init(int argc, VALUE* argv, VALUE self)
 {
 	VALUE tnetstring = Qnil;
 	rb_scan_args(argc, argv, "01", &tnetstring);
@@ -53,31 +62,17 @@ VALUE ltns_da_new(int argc, VALUE* argv, VALUE class)
 
 	if (TYPE(tnetstring) != T_STRING)
 	{
+
 		ltns_da_raise_on_error(INVALID_ARGUMENT);
 	}
 
-	return ltns_da_new2(class, RSTRING_PTR(tnetstring), RSTRING_LEN(tnetstring));
-}
+	Wrapper *wrapper;
+	Data_Get_Struct(self, Wrapper, wrapper);
 
-VALUE ltns_da_new2(VALUE class, const char* tnetstring, size_t length)
-{
-	Wrapper *wrapper = calloc(1, sizeof(Wrapper));
-	if (!wrapper)
-	{
-		ltns_da_raise_on_error(OUT_OF_MEMORY);
-	}
-	wrapper->parent = Qnil;
-	LTNSError error = LTNSDataAccessCreate(&wrapper->data_access, tnetstring, length);
-	if (error)
-	{
-		LTNSDataAccessDestroy(wrapper->data_access);
-		free(wrapper);
-		ltns_da_raise_on_error(error);
-	}
+	LTNSError error = LTNSDataAccessCreate(&wrapper->data_access, RSTRING_PTR(tnetstring), RSTRING_LEN(tnetstring));
+	ltns_da_raise_on_error(error);
 
-	VALUE tdata = Data_Wrap_Struct(class, ltns_da_mark, ltns_da_free, wrapper);
-	rb_obj_call_init(tdata, 0, NULL);
-	return tdata;
+	return self;
 }
 
 VALUE ltns_da_get(VALUE self, VALUE key)
@@ -113,16 +108,11 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 			ltns_da_raise_on_error(error);
 		}
 
-		Wrapper *child_wrapper = (Wrapper*)calloc(sizeof(Wrapper), 1);
-		if (!child_wrapper)
-		{
-			LTNSTermDestroy(term);
-			ltns_da_raise_on_error(OUT_OF_MEMORY);
-		}
+		ret = ltns_da_alloc(cDataAccess);
+		Wrapper* child_wrapper;
+		Data_Get_Struct(ret, Wrapper, child_wrapper);
 		child_wrapper->data_access = child;
 		child_wrapper->parent = self;
-		ret = Data_Wrap_Struct(cDataAccess, ltns_da_mark, ltns_da_free, child_wrapper);
-		rb_obj_call_init(ret, 0, NULL);
 	}
 	else
 	{
@@ -309,9 +299,11 @@ VALUE ltns_da_each(VALUE self)
 		LTNSTermDestroy(term);
 		ltns_da_raise_on_error(error);
 
-		VALUE value;
-		if (!ltns_parse(tnetstring, tnetstring + length, &value))
-			ltns_da_raise_on_error(INVALID_TNETSTRING);
+		/* FIXME: Calling get for value turns each into O(n^2) */
+		/* NOTE: Can't call parse for value since we want a nested DA,
+		 * parse only creates new roots */
+		VALUE value = ltns_da_get(self, key);
+
 		offset += length;
 
 		VALUE pair = rb_ary_new3(2, key, value);
@@ -333,6 +325,29 @@ VALUE ltns_da_to_hash(VALUE self)
 	VALUE hash = rb_hash_new();
 	rb_block_call(self, rb_intern("each"), 0, NULL, ltns_da_to_hash_helper, hash);
 	return hash;
+}
+
+VALUE ltns_da_initialize_copy(VALUE copy, VALUE orig)
+{
+	if (copy == orig)
+		return copy;
+
+	Wrapper *copy_wrapper, *orig_wrapper;
+	Data_Get_Struct(copy, Wrapper, copy_wrapper);
+	Data_Get_Struct(orig, Wrapper, orig_wrapper);
+
+	if (TYPE(orig) != T_DATA || RDATA(orig)->dfree != (RUBY_DATA_FUNC)ltns_da_free)
+		rb_raise(rb_eTypeError, "Wrong argument type");
+
+	if (copy_wrapper->data_access || copy_wrapper->parent != Qnil)
+		ltns_da_raise_on_error(INVALID_ARGUMENT);
+
+	copy_wrapper->parent = orig_wrapper->parent;
+	copy_wrapper->data_access = orig_wrapper->data_access;
+	/* Increase reference count */
+	LTNSDataAccessRef(copy_wrapper->data_access);
+
+	return copy;
 }
 
 static void ltns_da_raise_on_error(LTNSError error)
@@ -387,9 +402,10 @@ void Init_lazy_tnetstring()
 	eKeyNotFound = rb_define_class_under(cModule, "KeyNotFound", rb_eStandardError);
 
 	cDataAccess = rb_define_class_under(cModule, "DataAccess", rb_cObject);
+	rb_define_alloc_func(cDataAccess, ltns_da_alloc);
 	rb_include_module(cDataAccess, rb_mEnumerable);
-	rb_define_singleton_method(cDataAccess, "new", ltns_da_new, -1);
-	rb_define_method(cDataAccess, "initialize", ltns_da_init, 0);
+
+	rb_define_method(cDataAccess, "initialize", ltns_da_init, -1);
 	rb_define_method(cDataAccess, "[]", ltns_da_get, 1);
 	rb_define_method(cDataAccess, "[]=", ltns_da_set, 2);
 	rb_define_method(cDataAccess, "remove", ltns_da_remove, 1);
@@ -402,4 +418,5 @@ void Init_lazy_tnetstring()
 	rb_define_method(cDataAccess, "each", ltns_da_each, 0);
 	rb_define_alias(cDataAccess, "each_pair", "each");
 	rb_define_method(cDataAccess, "to_hash", ltns_da_to_hash, 0);
+	rb_define_method(cDataAccess, "initialize_copy", ltns_da_initialize_copy, 1);
 }

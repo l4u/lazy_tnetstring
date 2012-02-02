@@ -68,7 +68,7 @@ int ltns_parse(const char* tnetstring, const char* end, VALUE* out)
 		break;
 	case LTNS_DICTIONARY:
 	{
-		*out = ltns_da_new2(cDataAccess, tnetstring, tnetstring_length);
+		*out = rb_funcall(cDataAccess, rb_intern("new"), 1, rb_str_new(tnetstring, tnetstring_length));
 		ret = TRUE;
 		break;
 	}

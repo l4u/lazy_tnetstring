@@ -718,6 +718,44 @@ module LazyTNetstring
       end
     end
 
+    describe "#dup" do
+      subject           { data_access }
+      let(:data_access) { LazyTNetstring::DataAccess.new(data) }
+
+      context "when duplicating a simple data access" do
+        let (:data)  { TNetstring.dump({ 'key' => 'value' }) }
+
+        it "should create a correct copy" do
+          copy = subject.dup
+          copy.data.should == subject.data
+        end
+        it "should not free the data when original gets GC'd" do
+          orig = LazyTNetstring::DataAccess.new(data)
+          copy = orig.dup
+          orig = nil
+          (1..100).each { GC.start }
+          copy.data.should == data
+        end
+      end
+
+      context "when duplicating a nested data access" do
+        let(:data)  { TNetstring.dump({ 'outer' => inner }) }
+        let(:inner) { { 'key' => 'value' } }
+
+        it "should create a correct copy" do
+          copy = subject['outer'].dup
+          copy.scoped_data.should == TNetstring.dump(inner)
+          copy.data.should == data
+        end
+        it "should not GC the parent of the copy" do
+          parent = LazyTNetstring::DataAccess.new data
+          copy = parent['outer'].dup
+          parent = nil
+          (1..100).each { GC.start }
+          copy.data.should == data
+        end
+      end
+    end
 
   end
 end
