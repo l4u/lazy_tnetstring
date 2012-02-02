@@ -42,10 +42,10 @@ end
 task :clean_tests do |task|
   File.unlink('ext/Makefile')
   Dir['ext/*.o'].each { |file| File.unlink(file) }
-  File.unlink('ext/lazy_tnetstring.so') rescue
-  File.unlink('ext/lazy_tnetstring.bundle') rescue
-  File.unlink('test/term_test')
+  File.unlink('ext/lazy_tnetstring.so') rescue true
+  File.unlink('ext/lazy_tnetstring.bundle') rescue true
   File.unlink('test/data_access_test')
+  File.unlink('test/term_test')
 end
 
 task :run_tests => [:ctests, :build_spec, :spec, :clean_tests] do |task|
