@@ -3,6 +3,7 @@
 #include "LTNS.h"
 
 #include "dump.h"
+#include "data_access.h"
 
 #ifndef FLOAT_DECIMAL_PRECISION
 #define FLOAT_DECIMAL_PRECISION 3
@@ -49,6 +50,12 @@ VALUE ltns_dump(VALUE module __attribute__ ((unused)), VALUE val)
 		break;
 	case T_SYMBOL:
 		ret = ltns_dump_string(rb_sym_to_s(val));
+		break;
+	case T_DATA:
+		if (RDATA(val)->dfree == (RUBY_DATA_FUNC)ltns_da_free)
+			ret = ltns_da_get_tnetstring(val);
+		else
+			ret = Qnil;
 		break;
 	default:
 		ret = Qnil;

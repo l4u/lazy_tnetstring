@@ -163,6 +163,28 @@ describe LazyTNetstring do
       end
     end
 
+    context "data access" do
+      it "dumps an empty hash" do
+        tnetstring = '0:}'
+        LazyTNetstring.dump(LazyTNetstring::DataAccess.new(tnetstring)).should == tnetstring
+      end
+
+      it "dumps an arbitrary hash of primitives and arrays" do
+        tnetstring = '34:5:hello,22:11:12345678901#4:this,]}'
+        LazyTNetstring.dump(LazyTNetstring::DataAccess.new(tnetstring)).should == tnetstring
+      end
+
+      it "dumps nested hashes" do
+        tnetstring = '25:5:hello,13:5:world,2:42#}}'
+        LazyTNetstring.dump(LazyTNetstring::DataAccess.new(tnetstring)).should == tnetstring
+      end
+
+      it "accepts symbols as keys" do
+        tnetstring = '25:5:hello,13:5:world,2:24#}}'
+        LazyTNetstring.dump(LazyTNetstring::DataAccess.new(tnetstring)).should == tnetstring
+      end
+    end
+
     it "rejects non-primitives" do
       expect { LazyTNetstring.dump(Object.new) }.to raise_error(ArgumentError)
     end
