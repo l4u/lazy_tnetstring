@@ -44,11 +44,11 @@ describe LazyTNetstring do
     end
 
     it "parses to an empty hash" do
-      LazyTNetstring.parse('0:}').should == {}
+      LazyTNetstring.parse('0:}').to_hash.should == {}
     end
 
     it "parses an arbitrary hash of ints, strings, and arrays" do
-      LazyTNetstring.parse('34:5:hello,22:11:12345678901#4:this,]}').should == {"hello" => [12345678901, 'this']}
+      LazyTNetstring.parse('34:5:hello,22:11:12345678901#4:this,]}').to_hash.should == {"hello" => [12345678901, 'this']}
     end
 
     it "parses a null" do
@@ -56,7 +56,7 @@ describe LazyTNetstring do
     end
 
     it "parses a dictionary with a null value" do
-      LazyTNetstring.parse("9:3:key,0:~}").should == {"key" => nil}
+      LazyTNetstring.parse("9:3:key,0:~}").to_hash.should == {"key" => nil}
     end
 
     it "raises on a lengthy null" do
