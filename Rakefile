@@ -7,30 +7,62 @@ rescue Bundler::BundlerError => e
   $stderr.puts "Run `bundle install` to install missing gems"
   exit e.status_code
 end
+
 require 'rake'
-
 require 'rspec/core/rake_task'
-RSpec::Core::RakeTask.new(:spec) do |t|
-  # Hack to build binary needed for tests
-  sh 'cd ext && ruby extconf.rb && make clean && make 2>&1 > /dev/null'
 
+file 'ext/Makefile' => 'ext/extconf.rb' do |task|
+  Dir::chdir('ext') do
+    raise 'Makefile generation failed' unless sh 'ruby extconf.rb'
+  end
+end
+
+task :build_spec => 'ext/Makefile' do |task|
+  Dir::chdir('ext') do
+    raise 'build failed' unless sh 'make'
+  end
+end
+
+task :build_ctests do |task|
+  Dir::chdir('test') do
+    raise 'build failed' unless sh 'make'
+  end
+end
+
+task :ctests => :build_ctests do |task|
+  raise 'term tests failed' unless sh './test/term_test'
+  raise 'data access tests failed' unless sh './test/data_access_test'
+end
+
+RSpec::Core::RakeTask.new(:spec) do |t|
   t.rspec_opts = ["--color"]
   t.fail_on_error = false
 end
 
-RSpec::Core::RakeTask.new(:test) do |t|
-  sh('cd test && make 2>&1 > /dev/null') || raise('Failed to build C tests')
-  puts 'Running data_access_test'
-  sh('./test/data_access_test') || raise('C tests failed')
-  puts 'Running term_test'
-  sh('./test/term_test') || raise('C tests failed')
+task :clean_tests do |task|
+  File.unlink('ext/Makefile')
+  Dir['ext/*.o'].each { |file| File.unlink(file) }
+  File.unlink('ext/lazy_tnetstring.so') rescue
+  File.unlink('ext/lazy_tnetstring.bundle') rescue
+  File.unlink('test/term_test')
+  File.unlink('test/data_access_test')
 end
 
-task :default => :spec
+task :run_tests => [:ctests, :build_spec, :spec, :clean_tests] do |task|
+end
+
+task :build => :run_tests do |task|
+  version = File.exist?('VERSION') ? File.read('VERSION').strip : ""
+  raise 'gem build failed' unless sh 'gem build lazy_tnetstring.gemspec'
+  puts
+  puts "Run 'gem install lazy_tnetstring-#{version}.gem' to install."
+end
+
+task :default => :build
 
 require 'rdoc/task'
 RDoc::Task.new do |rdoc|
-  version = File.exist?('VERSION') ? File.read('VERSION') : ""
+  version = File.exist?('VERSION') ? File.read('VERSION').strip : ""
 
   rdoc.rdoc_dir = 'rdoc'
   rdoc.title = "lazy_tnetstring #{version}"
