@@ -1,4 +1,5 @@
 require 'spec_helper'
+# Copyright (c) 2011 Matt Yoho (MIT-LICENSE)
 
 describe LazyTNetstring do
   context "parsing" do
