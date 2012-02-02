@@ -742,17 +742,8 @@ module LazyTNetstring
         let(:data)  { TNetstring.dump({ 'outer' => inner }) }
         let(:inner) { { 'key' => 'value' } }
 
-        it "should create a correct copy" do
-          copy = subject['outer'].dup
-          copy.scoped_data.should == TNetstring.dump(inner)
-          copy.data.should == data
-        end
-        it "should not GC the parent of the copy" do
-          parent = LazyTNetstring::DataAccess.new data
-          copy = parent['outer'].dup
-          parent = nil
-          (1..100).each { GC.start }
-          copy.data.should == data
+        it "should raise exception" do
+          expect { subject['outer'].dup }.to raise_error(TypeError)
         end
       end
     end

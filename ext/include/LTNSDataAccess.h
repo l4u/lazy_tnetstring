@@ -17,7 +17,6 @@ typedef struct LTNSChildNode
 LTNSError LTNSDataAccessCreate(LTNSDataAccess** data_access, const char* tnetstring, size_t length);
 LTNSError LTNSDataAccessCreateNested(LTNSDataAccess** child, LTNSDataAccess* parent, LTNSTerm *term);
 
-LTNSError LTNSDataAccessRef(LTNSDataAccess* data_access);
 LTNSError LTNSDataAccessDestroy(LTNSDataAccess* data_access);
 
 LTNSError LTNSDataAccessParent(LTNSDataAccess* data_access, LTNSDataAccess** parent);

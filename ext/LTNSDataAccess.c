@@ -154,14 +154,6 @@ LTNSError LTNSDataAccessCreateNested( LTNSDataAccess **child, LTNSDataAccess *pa
 	return 0;
 }
 
-LTNSError LTNSDataAccessRef(LTNSDataAccess* data_access)
-{
-	if (!data_access || data_access->ref_count == UINT_MAX)
-		return INVALID_ARGUMENT;
-	data_access->ref_count++;
-	return 0;
-}
-
 LTNSError LTNSDataAccessDestroy(LTNSDataAccess* data_access)
 {
 	LTNSChildNode *node, *to_delete;
