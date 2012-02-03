@@ -48,7 +48,7 @@ you can interact with it like this
 ## Installation
 
     rake build
-    gem install pkg/LazyTNetstring-*.gem
+    gem install lazy_tnetstring-*.gem
 
 ## Performance
 
