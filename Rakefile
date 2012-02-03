@@ -44,21 +44,38 @@ task :clean_tests do |task|
   Dir['ext/*.o'].each { |file| File.unlink(file) }
   File.unlink('ext/lazy_tnetstring.so') rescue true
   File.unlink('ext/lazy_tnetstring.bundle') rescue true
-  File.unlink('test/data_access_test')
-  File.unlink('test/term_test')
+  File.unlink('test/data_access_test') rescue true
+  File.unlink('test/term_test') rescue true
 end
 
-task :run_tests => [:ctests, :build_spec, :spec, :clean_tests] do |task|
+task :test => [:ctests, :build_spec, :spec, :clean_tests] do |task|
 end
 
-task :build => :run_tests do |task|
+task :run_benchmark => :build_spec do |task|
+  Dir::chdir('test/bench') do
+    data_files = Dir['data/*.tnet'].join(' ')
+    puts '###'
+    puts '# Benchmarking full parsing'
+    puts '###'
+    sh "ruby bench.rb #{data_files}"
+    puts '###'
+    puts '# Benchmarking lazy parsing'
+    puts '###'
+    sh "ruby bench.rb lazy #{data_files}"
+  end
+end
+
+task :benchmark => [:run_benchmark, :clean_tests] do |task|
+end
+
+task :build do |task|
   version = File.exist?('VERSION') ? File.read('VERSION').strip : ""
   raise 'gem build failed' unless sh 'gem build lazy_tnetstring.gemspec'
   puts
   puts "Run 'gem install lazy_tnetstring-#{version}.gem' to install."
 end
 
-task :default => :build
+task :default => [:build, :test]
 
 require 'rdoc/task'
 RDoc::Task.new do |rdoc|

@@ -50,6 +50,15 @@ you can interact with it like this
     rake build
     gem install pkg/LazyTNetstring-*.gem
 
+## Performance
+
+If you want to compare the performance of lazy parsing/updating to parsing a
+full tnetstring some simple benchmarks are included. To compare the time it
+takes to parse and update 1000 random keys with the tnetstring library versus
+this lazy\_tnetstring library simply run:
+
+    rake benchmark
+
 ## Copyright
 
-Copyright (c) 2011 wooga GmbH <http://www.wooga.com>. See file COPYING (MIT) for details.
+Copyright (c) 2011 wooga GmbH <http://www.wooga.com>. See MIT-LICENSE for details.

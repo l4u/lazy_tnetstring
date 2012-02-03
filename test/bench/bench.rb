@@ -3,7 +3,7 @@
 # benchmark obfruscated data
 
 require 'benchmark'
-require '../../ext/LazyTNetstring.so'
+require 'lazy_tnetstring'
 require 'tnetstring'
 require './helper.rb'
 
