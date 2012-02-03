@@ -4,14 +4,12 @@ Gem::Specification.new do |gem|
   gem.license = "MIT"
   gem.summary = 'Lazy TNetstring C implementation.'
   gem.description = 'A fast C-based lazy TNetstring data accessor.'
-  gem.email = "christian.lundgren@wooga.net"
-  gem.authors = ["Christian Lundgren"]
-  gem.email = "mario.bodemann@wooga.net"
-  gem.authors = ["Mario Bodemann"]
+  gem.email = ["christian.lundgren@wooga.net", "mario.bodemann@wooga.net"]
+  gem.authors = ["Christian Lundgren", "Mario Bodemann"]
   gem.test_files = `git ls-files -- {test,spec,features}/*`.split("\n")
   gem.files = `git ls-files -- {ext,COPYING,README,VERSION}`.split("\n")
   gem.extensions = ["ext/extconf.rb"]
-  gem.version = File.exist?('VERSION') ? File.read('VERSION') : ""
+  gem.version = File.exist?('VERSION') ? File.read('VERSION').strip : ""
   gem.licenses = ["MIT"]
   gem.require_paths = ["ext"]
 
