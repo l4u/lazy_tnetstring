@@ -729,6 +729,12 @@ module LazyTNetstring
           copy = subject.dup
           copy.data.should == subject.data
         end
+        it "should copy the underlying data" do
+          copy = subject.dup
+          copy.remove('key')
+          copy['key'].should be_nil
+          subject['key'].should == 'value'
+        end
         it "should not free the data when original gets GC'd" do
           orig = LazyTNetstring::DataAccess.new(data)
           copy = orig.dup
