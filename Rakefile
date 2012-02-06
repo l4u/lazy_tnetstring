@@ -75,7 +75,7 @@ task :build do |task|
   puts "Run 'gem install lazy_tnetstring-#{version}.gem' to install."
 end
 
-task :default => [:build, :test]
+task :default => [:test, :build]
 
 require 'rdoc/task'
 RDoc::Task.new do |rdoc|
