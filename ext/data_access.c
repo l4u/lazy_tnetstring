@@ -308,6 +308,8 @@ VALUE ltns_da_each(VALUE self)
 
 		VALUE pair = rb_ary_new3(2, key, value);
 		rb_yield(pair);
+
+		/* FIXME: If the block we yield to modifies the TNetstring this may break! */
 	}
 	return Qnil;
 }
