@@ -329,6 +329,12 @@ VALUE ltns_da_to_hash(VALUE self)
 	return hash;
 }
 
+VALUE ltns_da_as_json(int argc, VALUE* argv, VALUE self)
+{
+	/* FIXME: Support options argument */
+	return ltns_da_to_hash(self);
+}
+
 VALUE ltns_da_initialize_copy(VALUE copy, VALUE orig)
 {
 	if (copy == orig)
@@ -432,5 +438,6 @@ void Init_lazy_tnetstring()
 	rb_define_method(cDataAccess, "each", ltns_da_each, 0);
 	rb_define_alias(cDataAccess, "each_pair", "each");
 	rb_define_method(cDataAccess, "to_hash", ltns_da_to_hash, 0);
+	rb_define_method(cDataAccess, "as_json", ltns_da_as_json, -1);
 	rb_define_method(cDataAccess, "initialize_copy", ltns_da_initialize_copy, 1);
 }
