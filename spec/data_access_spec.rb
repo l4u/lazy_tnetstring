@@ -261,7 +261,7 @@ module LazyTNetstring
       context "when updating a key to nil" do
         let(:empty)     { TNetstring.dump({}) }
 
-        it "should remove the key" do
+        it "should delete the key" do
           subject[key] = nil
           subject.data.should == empty
         end
@@ -293,7 +293,7 @@ module LazyTNetstring
       end
     end
 
-    describe "#remove" do
+    describe "#delete" do
       subject           { data_access }
       let(:data_access) { LazyTNetstring::DataAccess.new(data) }
 
@@ -304,12 +304,15 @@ module LazyTNetstring
         let(:value)     { 'value' }
 
         it "should do nothing if key doesn't exist" do
-          subject.remove('non_existing_key')
+          subject.delete('non_existing_key')
           subject.data.should == data
         end
         it "should decrease the parents length" do
-          subject.remove(key)
+          subject.delete(key)
           subject.data.should == empty
+        end
+        it "should return the deleted value" do
+          subject.delete(key).should == value
         end
       end
 
@@ -333,12 +336,12 @@ module LazyTNetstring
                                 'key2' => 'value2'
                               }
                             })}
-        it "should not remove the inner key" do
-          subject.remove('key')
+        it "should not delete the inner key" do
+          subject.delete('key')
           subject.data.should == data_inner
         end
-        it "should not remove the outer key" do
-          subject['key2'].remove('key')
+        it "should not delete the outer key" do
+          subject['key2'].delete('key')
           subject.data.should == data_outer
         end
       end
@@ -347,8 +350,8 @@ module LazyTNetstring
         let(:data)      { TNetstring.dump({ 'key1' => 'value1', 'key2' => 'value2', 'key3' => 'value3' }) }
         let(:new_data)  { TNetstring.dump({ 'key1' => 'value1', 'key3' => 'value3' }) }
 
-        it "should remove the part of TNetstring from the data store" do
-          subject.remove('key2')
+        it "should delete the part of TNetstring from the data store" do
+          subject.delete('key2')
           subject.data.should == new_data
         end
       end
@@ -369,7 +372,7 @@ module LazyTNetstring
                             }
                           })}
         it "should update all parent lengths" do
-          subject['level1']['level2']['level3'].remove('key')
+          subject['level1']['level2']['level3'].delete('key')
           subject.data.should == new_data
         end
       end
@@ -583,16 +586,16 @@ module LazyTNetstring
         it "should update the offset of the trailing child" do
           first = subject['first']
           second = subject['second']
-          subject.remove('first')
+          subject.delete('first')
           second.scoped_data.should == TNetstring.dump(inner)
           second.offset.should == 12
         end
-        it "should raise InvalidScope when using the removed hash" do
+        it "should raise InvalidScope when using the delete hash" do
           first = subject['first']
-          subject.remove('first')
+          subject.delete('first')
           expect { first['key'] }.to raise_error(LazyTNetstring::InvalidScope)
           expect { first['key'] = 'new' }.to raise_error(LazyTNetstring::InvalidScope)
-          expect { first.remove('key') }.to raise_error(LazyTNetstring::InvalidScope)
+          expect { first.delete('key') }.to raise_error(LazyTNetstring::InvalidScope)
           expect { first.data }.to raise_error(LazyTNetstring::InvalidScope)
           expect { first.scoped_data }.to raise_error(LazyTNetstring::InvalidScope)
         end
@@ -755,7 +758,7 @@ module LazyTNetstring
         end
         it "should copy the underlying data" do
           copy = subject.dup
-          copy.remove('key')
+          copy.delete('key')
           copy['key'].should be_nil
           subject['key'].should == 'value'
         end

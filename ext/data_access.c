@@ -139,7 +139,7 @@ VALUE ltns_da_set(VALUE self, VALUE key, VALUE new_value)
 	char* key_cstr = StringValueCStr(key);
 
 	if (new_value == Qnil)
-		return ltns_da_remove(self, key);
+		return ltns_da_delete(self, key);
 
 	LTNSError error = 0;
 	LTNSTerm *term = NULL;
@@ -164,8 +164,10 @@ VALUE ltns_da_set(VALUE self, VALUE key, VALUE new_value)
 	return Qnil;
 }
 
-VALUE ltns_da_remove(VALUE self, VALUE key)
+VALUE ltns_da_delete(VALUE self, VALUE key)
 {
+	VALUE ret = ltns_da_get(self, key);
+
 	Wrapper *wrapper;
 	Data_Get_Struct(self, Wrapper, wrapper);
 	key = ltns_da_key2str(key);
@@ -175,7 +177,7 @@ VALUE ltns_da_remove(VALUE self, VALUE key)
 	if (error != KEY_NOT_FOUND)
 		ltns_da_raise_on_error(error);
 
-	return Qnil;
+	return ret;
 }
 
 VALUE ltns_da_increment_value(VALUE self, VALUE key, long delta)
@@ -434,7 +436,7 @@ void Init_lazy_tnetstring()
 	rb_define_method(cDataAccess, "initialize", ltns_da_init, -1);
 	rb_define_method(cDataAccess, "[]", ltns_da_get, 1);
 	rb_define_method(cDataAccess, "[]=", ltns_da_set, 2);
-	rb_define_method(cDataAccess, "remove", ltns_da_remove, 1);
+	rb_define_method(cDataAccess, "delete", ltns_da_delete, 1);
 	rb_define_method(cDataAccess, "increment_value", ltns_da_increment_value_ruby, 1);
 	rb_define_method(cDataAccess, "decrement_value", ltns_da_decrement_value_ruby, 1);
 	rb_define_method(cDataAccess, "data", ltns_da_get_root_tnetstring, 0);
