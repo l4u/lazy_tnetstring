@@ -310,6 +310,12 @@ VALUE ltns_da_each(VALUE self)
 		rb_yield(pair);
 
 		/* FIXME: If the block we yield to modifies the TNetstring this may break! */
+
+		/* Update data location and length */
+		error = LTNSDataAccessAsTerm(wrapper->data_access, &term);
+		ltns_da_raise_on_error(error);
+		LTNSTermGetPayload(term, &payload, &payload_length, NULL);
+		LTNSTermDestroy(term);
 	}
 	return Qnil;
 }

@@ -682,6 +682,30 @@ module LazyTNetstring
           yields.should == 3
         end
       end
+
+      context "when changing data during iteration" do
+        let(:data) { TNetstring.dump({'key1' => 1, 'key2' => 2, 'key3' => 3}) }
+        it "should should raise an exception" do
+          expect {
+            subject.each do |key, value|
+              subject[key] = value * 10
+            end
+          }.to raise_error(LazyTNetstring::InvalidTNetString)
+        end
+      end
+
+      context "when adding keys during nested iteration" do
+        let(:data)           { TNetstring.dump({'key1' => 1, 'inner' => {'key2' => 2, 'key3' => 3}}) }
+        let(:expected_data)  { TNetstring.dump(Hash[(2..100).collect {|v| ["key#{v}", v]}]) }
+        it "should be ok" do
+          subject['inner'].each do |key, value|
+            subject['key1'] = 'x' * value
+            new_value = value < 100 ? value + 1 : 100
+            subject['inner']["key#{new_value}"] = new_value
+          end
+          subject['inner'].scoped_data.should == expected_data
+        end
+      end
     end
 
     describe "#to_hash" do
