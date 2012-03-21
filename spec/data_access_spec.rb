@@ -55,22 +55,10 @@ module LazyTNetstring
         its(:data)   { should == data }
         its(:offset) { should == 0 }
       end
-
-      context 'with an options hash' do
-        let(:data) { TNetstring.dump({short_key => 'value'}) }
-        let(:long_key) { 'x' * 100 }
-        let(:short_key) { 'x' }
-        let(:mappings) { {long_key => short_key} }
-        let(:data_access) { LazyTNetstring::DataAccess.new(data, :mappings => mappings) }
-
-        its(:data) { should == data }
-        its(:to_hash) { should == {long_key => 'value'} }
-      end
     end
 
     describe '#[]' do
-      let(:data_access) { LazyTNetstring::DataAccess.new(data) }
-      subject   { data_access[key]}
+      subject   { LazyTNetstring::DataAccess.new(data)[key]}
       let(:key) { 'foo' }
 
       context 'for empty hash' do
@@ -109,33 +97,14 @@ module LazyTNetstring
           subject[non_existing_key].should be_nil
         end
       end
-
-      context 'with key mappings' do
-        let(:data)  { TNetstring.dump({ 'key' => 'value' }) }
-        let(:mappings) { {'long-key' => 'key'} }
-        let(:data_access) { LazyTNetstring::DataAccess.new(data, :mappings => mappings) }
-
-        context "when accessing through the key mappings" do
-          let(:key) { 'long-key' }
-
-          it { should == 'value' }
-        end
-
-        context "when accessing without the key mappings" do
-          let(:key) { 'key' }
-
-          it { should == 'value' }
-        end
-      end
     end
 
     describe '#[]=(key, new_value)' do
-      subject           { data_access }
-      let(:data_access) { LazyTNetstring::DataAccess.new(data) }
-      let(:data)        { TNetstring.dump({key => old_value}) }
-      let(:key)         { 'foo' }
-      let(:old_value)   { 'bar' }
-      let(:new_value)   { 'baz' }
+      subject         { LazyTNetstring::DataAccess.new(data) }
+      let(:data)      { TNetstring.dump({key => old_value}) }
+      let(:key)       { 'foo' }
+      let(:old_value) { 'bar' }
+      let(:new_value) { 'baz' }
 
       context 'for single value updates' do
         before( :each ) do
@@ -322,21 +291,6 @@ module LazyTNetstring
           subject.data.should == new_data
         end
       end
-
-      context 'with key mappings' do
-        let(:key) { short_key }
-        let(:long_key) { 'x' * 100 }
-        let(:short_key) { 'x' }
-        let(:mappings) { {long_key => short_key} }
-        let(:data) { LazyTNetstring.dump({}) }
-        let(:expected) { TNetstring.dump({short_key => new_value}) }
-        let(:data_access) { LazyTNetstring::DataAccess.new(data, :mappings => mappings) }
-
-        it "should set the value with the mapped key" do
-          subject[long_key] = new_value
-          subject.data.should == expected
-        end
-      end
     end
 
     describe "#delete" do
@@ -420,20 +374,6 @@ module LazyTNetstring
         it "should update all parent lengths" do
           subject['level1']['level2']['level3'].delete('key')
           subject.data.should == new_data
-        end
-      end
-
-      context 'with key mappings' do
-        let(:long_key) { 'x' * 100 }
-        let(:short_key) { 'x' }
-        let(:mappings) { {long_key => short_key} }
-        let(:data) { TNetstring.dump({short_key => 'value'}) }
-        let(:expected) { LazyTNetstring.dump({}) }
-        let(:data_access) { LazyTNetstring::DataAccess.new(data, :mappings => mappings) }
-
-        it "should delete the mapped key" do
-          subject.delete(long_key)
-          subject.data.should == expected
         end
       end
     end
@@ -769,19 +709,6 @@ module LazyTNetstring
           subject['inner'].scoped_data.should == expected_data
         end
       end
-
-      context 'with key mappings' do
-        let(:data)      { TNetstring.dump({'key' => 'value'}) }
-        let(:expected)  { ['long-key-name', 'value'] }
-        let(:mappings)  { { 'long-key-name' => 'key' } }
-        let(:data_access) { LazyTNetstring::DataAccess.new(data, :mappings => mappings) }
-
-        it "should yield a key with the name from the mappings" do
-          result = nil
-          subject.each { |args| result = args }
-          result.should == expected
-        end
-      end
     end
 
     describe "#to_hash" do
@@ -814,17 +741,6 @@ module LazyTNetstring
         it "should return a correct hash with a nested data access" do
           subject.to_hash['outer'].data.should == data
           subject.to_hash['outer'].scoped_data.should == TNetstring.dump(inner)
-        end
-      end
-
-      context 'with key mappings' do
-        let(:data)      { TNetstring.dump({'key' => 'value'}) }
-        let(:expected)  { { 'long-key-name' => 'value' } }
-        let(:mappings)  { { 'long-key-name' => 'key' } }
-        let(:data_access) { LazyTNetstring::DataAccess.new(data, :mappings => mappings) }
-
-        it "should return a hash with the names from the mappings" do
-          subject.to_hash.should == expected
         end
       end
     end
@@ -861,66 +777,6 @@ module LazyTNetstring
 
         it "should raise exception" do
           expect { subject['outer'].dup }.to raise_error(TypeError)
-        end
-      end
-
-      context 'when duplicating a data access with a key mapping' do
-        let(:data)  { TNetstring.dump({ 'key' => 'value' }) }
-        let(:mappings) { {'long-key' => 'key'} }
-        let(:data_access) { LazyTNetstring::DataAccess.new(data, :mappings => mappings) }
-
-        it "should create a copy with the same key mappings" do
-          copy = subject.dup
-          copy['long-key'].should == subject['long-key']
-        end
-      end
-    end
-
-    describe "key mapping scheme" do
-      subject           { data_access }
-      let(:data_access) { LazyTNetstring::DataAccess.new(data, :mappings => mapping) }
-
-      context "when updating" do
-        let(:data)     { TNetstring.dump({ "f" => "bar"}) }
-        let(:new_data) { TNetstring.dump({ "f" => "baz"}) }
-        let(:mapping)  { { "foo" => "f" } }
-
-        it "should change the existing value for the mapped key" do
-          subject['foo'] = "baz"
-          subject.data.should == new_data
-        end
-      end
-
-      context "when adding" do
-        let(:data)     { TNetstring.dump({})}
-        let(:new_data) { TNetstring.dump({ "f" => "bar"}) }
-        let(:mapping)  { { "foo" => "f" } }
-
-        it "should add the smaller key" do
-          subject['foo'] = "bar"
-          subject.data.should == new_data
-        end
-      end
-
-      context "when deleteing" do
-        let(:data)     { TNetstring.dump({ "f" => "bar"}) }
-        let(:new_data) { TNetstring.dump({}) }
-        let(:mapping)  { { "foo" => "f" } }
-
-        it "should delete the smaller key" do
-          subject.delete('foo')
-          subject.data.should == new_data
-        end
-      end
-
-      context "when updating a nested hash" do
-        let(:data)     { TNetstring.dump({ "outer" => { "f" => "bar" } }) }
-        let(:new_data) { TNetstring.dump({ "outer" => { "f" => "baz" } }) }
-        let(:mapping)  { { "foo" => "f" } }
-
-        it "should change the exiting value for the smaller key" do
-          subject[ "outer" ][ "foo" ] = "baz"
-          subject.data.should == new_data
         end
       end
     end
