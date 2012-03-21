@@ -15,12 +15,14 @@ VALUE eKeyNotFound;
 typedef struct _Wrapper
 {
 	VALUE parent;
+	VALUE key_mappings;
 	LTNSDataAccess* data_access;
 } Wrapper;
 
 
 static void ltns_da_raise_on_error(LTNSError error);
 static VALUE ltns_da_key2str(VALUE key);
+static VALUE ltns_da_prepare_key(VALUE self, VALUE key);
 static VALUE ltns_da_to_hash_helper(VALUE pair, VALUE hash);
 
 
@@ -41,6 +43,7 @@ void ltns_da_mark(void* ptr)
 {
 	Wrapper *wrapper = (Wrapper*)ptr;
 	rb_gc_mark(wrapper->parent);
+	rb_gc_mark(wrapper->key_mappings);
 }
 
 void ltns_da_free(void* ptr)
@@ -54,7 +57,8 @@ void ltns_da_free(void* ptr)
 VALUE ltns_da_init(int argc, VALUE* argv, VALUE self)
 {
 	VALUE tnetstring = Qnil;
-	rb_scan_args(argc, argv, "01", &tnetstring);
+	VALUE options = Qnil;
+	rb_scan_args(argc, argv, "02", &tnetstring, &options);
 	if (tnetstring == Qnil)
 	{
 		tnetstring = rb_str_new2("0:}"); // Default to empty hash
@@ -72,6 +76,16 @@ VALUE ltns_da_init(int argc, VALUE* argv, VALUE self)
 	LTNSError error = LTNSDataAccessCreate(&wrapper->data_access, RSTRING_PTR(tnetstring), RSTRING_LEN(tnetstring));
 	ltns_da_raise_on_error(error);
 
+	wrapper->key_mappings = Qnil;
+	if (TYPE(options) == T_HASH)
+	{
+		VALUE sym_mappings = ID2SYM(rb_intern("mappings"));
+		wrapper->key_mappings = rb_hash_aref(options, sym_mappings);
+	}
+
+	if (TYPE(wrapper->key_mappings) != T_HASH)
+		wrapper->key_mappings = rb_hash_new();
+
 	return self;
 }
 
@@ -79,7 +93,7 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 {
 	Wrapper *wrapper;
 	Data_Get_Struct(self, Wrapper, wrapper);
-	key = ltns_da_key2str(key);
+	key = ltns_da_prepare_key(self, key);
 	char* key_cstr = StringValueCStr(key);
 
 	LTNSTerm *term = NULL;
@@ -113,6 +127,7 @@ VALUE ltns_da_get(VALUE self, VALUE key)
 		Data_Get_Struct(ret, Wrapper, child_wrapper);
 		child_wrapper->data_access = child;
 		child_wrapper->parent = self;
+		child_wrapper->key_mappings = wrapper->key_mappings;
 	}
 	else
 	{
@@ -135,7 +150,7 @@ VALUE ltns_da_set(VALUE self, VALUE key, VALUE new_value)
 {
 	Wrapper *wrapper;
 	Data_Get_Struct(self, Wrapper, wrapper);
-	key = ltns_da_key2str(key);
+	key = ltns_da_prepare_key(self, key);
 	char* key_cstr = StringValueCStr(key);
 
 	if (new_value == Qnil)
@@ -170,7 +185,7 @@ VALUE ltns_da_delete(VALUE self, VALUE key)
 
 	Wrapper *wrapper;
 	Data_Get_Struct(self, Wrapper, wrapper);
-	key = ltns_da_key2str(key);
+	key = ltns_da_prepare_key(self, key);
 	char* key_cstr = StringValueCStr(key);
 
 	LTNSError error = LTNSDataAccessRemove(wrapper->data_access, key_cstr);
@@ -272,6 +287,8 @@ VALUE ltns_da_each(VALUE self)
 	Wrapper *wrapper;
 	Data_Get_Struct(self, Wrapper, wrapper);
 
+	VALUE key_mappings_inverse = rb_funcall(wrapper->key_mappings, rb_intern("invert"), 0);
+
 	LTNSTerm *term = NULL;
 	LTNSError error = LTNSDataAccessAsTerm(wrapper->data_access, &term);
 	ltns_da_raise_on_error(error);
@@ -295,6 +312,10 @@ VALUE ltns_da_each(VALUE self)
 		if (!ltns_parse(tnetstring, tnetstring + length, &key))
 			ltns_da_raise_on_error(INVALID_TNETSTRING);
 		offset += length;
+
+		VALUE mapped_key = rb_hash_aref(key_mappings_inverse, key);
+		if (mapped_key != Qnil)
+			key = mapped_key;
 
 		error = LTNSTermCreateNested(&term, payload + offset, payload + payload_length);
 		LTNSTermGetTNetstring(term, &tnetstring, &length);
@@ -372,6 +393,7 @@ VALUE ltns_da_initialize_copy(VALUE copy, VALUE orig)
 
 	/* Create new root copy from original */
 	copy_wrapper->parent = Qnil;
+	copy_wrapper->key_mappings = orig_wrapper->key_mappings;
 	error = LTNSDataAccessCreate(&copy_wrapper->data_access, tnetstring, length);
 	ltns_da_raise_on_error(error);
 
@@ -416,6 +438,19 @@ static VALUE ltns_da_key2str(VALUE key)
 	}
 
 	return str;
+}
+
+static VALUE ltns_da_prepare_key(VALUE self, VALUE key)
+{
+	Wrapper *wrapper;
+	Data_Get_Struct(self, Wrapper, wrapper);
+
+	VALUE mapped_key = rb_hash_aref(wrapper->key_mappings, key);
+
+	if (mapped_key != Qnil)
+		key = mapped_key;
+
+	return ltns_da_key2str(key);
 }
 
 void Init_lazy_tnetstring()
