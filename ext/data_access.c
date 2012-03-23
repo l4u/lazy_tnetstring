@@ -355,9 +355,6 @@ VALUE ltns_da_initialize_copy(VALUE copy, VALUE orig)
 	if (TYPE(orig) != T_DATA || RDATA(orig)->dfree != (RUBY_DATA_FUNC)ltns_da_free)
 		rb_raise(rb_eTypeError, "Wrong argument type");
 
-	if (orig_wrapper->parent != Qnil || copy_wrapper->parent != Qnil)
-		rb_raise(rb_eTypeError, "Can't copy nested DataAccess");
-
 	if (copy_wrapper->data_access)
 		ltns_da_raise_on_error(INVALID_ARGUMENT);
 

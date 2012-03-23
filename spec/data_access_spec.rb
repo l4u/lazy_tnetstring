@@ -774,9 +774,18 @@ module LazyTNetstring
       context "when duplicating a nested data access" do
         let(:data)  { TNetstring.dump({ 'outer' => inner }) }
         let(:inner) { { 'key' => 'value' } }
+        let(:orig)  { data_access['outer'] }
 
-        it "should raise exception" do
-          expect { subject['outer'].dup }.to raise_error(TypeError)
+        subject { orig.dup }
+
+        it "should equal the original" do
+          subject.should == orig
+        end
+
+        it "should be a a deep copy" do
+          subject['key'] = 'other value'
+          orig['key'].should == 'value'
+          subject.should_not == orig
         end
       end
     end
