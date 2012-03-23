@@ -378,6 +378,16 @@ VALUE ltns_da_initialize_copy(VALUE copy, VALUE orig)
 	return copy;
 }
 
+VALUE ltns_da_eql(VALUE self, VALUE other)
+{
+	if (TYPE(other) != T_DATA || RDATA(other)->dfree != (RUBY_DATA_FUNC)ltns_da_free)
+		return Qfalse;
+
+	VALUE self_hash = rb_funcall(self, rb_intern("to_hash"), 0);
+	VALUE other_hash = rb_funcall(other, rb_intern("to_hash"), 0);
+	return rb_funcall(self_hash, rb_intern("=="), 1, other_hash);
+}
+
 static void ltns_da_raise_on_error(LTNSError error)
 {
 	VALUE rb_Exception;
@@ -448,4 +458,6 @@ void Init_lazy_tnetstring()
 	rb_define_method(cDataAccess, "to_hash", ltns_da_to_hash, 0);
 	rb_define_method(cDataAccess, "as_json", ltns_da_as_json, -1);
 	rb_define_method(cDataAccess, "initialize_copy", ltns_da_initialize_copy, 1);
+	rb_define_method(cDataAccess, "eql?", ltns_da_eql, 1);
+	rb_define_alias(cDataAccess, "==", "eql?");
 }

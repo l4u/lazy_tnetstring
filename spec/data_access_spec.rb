@@ -781,5 +781,41 @@ module LazyTNetstring
       end
     end
 
+    describe '#==' do
+      let(:lhs) { LazyTNetstring::DataAccess.new(data) }
+      let(:rhs) { LazyTNetstring::DataAccess.new(other_data) }
+
+      let(:data) { LazyTNetstring.dump({:outer => { :inner => 5 }}) }
+      let(:other_data) { data }
+
+      subject { lhs == rhs }
+
+      it { should == true }
+
+      context 'with eql? alias' do
+        subject { lhs.eql? rhs }
+
+        it { should == true }
+      end
+
+      context 'with wrong type' do
+        let(:rhs) { nil }
+
+        it { should == false }
+      end
+
+      context 'for differing values' do
+        let(:other_data) { LazyTNetstring.dump({:outer => { :inner => 6 }}) }
+
+        it { should == false }
+      end
+
+      context 'for differing keys' do
+        let(:other_data) { LazyTNetstring.dump({:outer_diff => { :inner => 5 }}) }
+
+        it { should == false }
+      end
+    end
+
   end
 end
