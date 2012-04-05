@@ -91,7 +91,7 @@ int ltns_parse_string(const char* payload, size_t length, VALUE* out)
 int ltns_parse_num(const char* payload, size_t length, VALUE* out)
 {
 	char *end;
-	long parsed_val = strtol(payload, &end, 10);
+	long long parsed_val = strtoll(payload, &end, 10);
 	if (end != (payload + length) || *end != LTNS_INTEGER)
 		return FALSE;
 	*out = LL2NUM(parsed_val);
