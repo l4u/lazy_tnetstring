@@ -97,15 +97,15 @@ describe LazyTNetstring do
 
     context "floats" do
       it "dumps a positive float" do
-        LazyTNetstring.dump(12.3).should == "6:12.300^"
+        LazyTNetstring.dump(12.3).should == "4:12.3^"
       end
 
       it "dumps a negative float" do
-        LazyTNetstring.dump(-2.3).should == "6:-2.300^"
+        LazyTNetstring.dump(-2.3).should == "4:-2.3^"
       end
 
       it "dumps a float with integral value" do
-        LazyTNetstring.dump(-42.0).should == "7:-42.000^"
+        LazyTNetstring.dump(-42.0).should == "5:-42.0^"
       end
     end
 

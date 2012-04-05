@@ -32,7 +32,7 @@ VALUE ltns_dump(VALUE module __attribute__ ((unused)), VALUE val)
 		ret = ltns_dump_string(val);
 		break;
 	case T_FLOAT:
-		ret = ltns_dump_float(val);
+		ret = ltns_dump_by_to_s(val, LTNS_FLOAT);
 		break;
 	case T_HASH:
 		ret = ltns_dump_hash(val);
@@ -42,7 +42,7 @@ VALUE ltns_dump(VALUE module __attribute__ ((unused)), VALUE val)
 		break;
 	case T_BIGNUM:
 	case T_FIXNUM:
-		ret = ltns_dump_num(val);
+		ret = ltns_dump_by_to_s(val, LTNS_INTEGER);
 		break;
 	case T_FALSE:
 	case T_TRUE:
@@ -66,6 +66,25 @@ VALUE ltns_dump(VALUE module __attribute__ ((unused)), VALUE val)
 		rb_eArgumentError = rb_const_get(rb_cObject, rb_intern("ArgumentError"));
 		rb_raise(rb_eArgumentError, "Invalid type");
 	}
+
+	return ret;
+}
+
+VALUE ltns_dump_by_to_s(VALUE val, LTNSType type)
+{
+	VALUE str = rb_funcall(val, rb_intern("to_s"), 0);
+
+	LTNSTerm *term = NULL;
+	LTNSError error = LTNSTermCreate(&term, RSTRING_PTR(str), RSTRING_LEN(str), type);
+	if (error)
+		return Qnil;
+	char* tnetstring = NULL;
+	size_t length;
+	error = LTNSTermGetTNetstring(term, &tnetstring, &length);
+	if (error)
+		return Qnil;
+	VALUE ret = rb_str_new(tnetstring, length);
+	LTNSTermDestroy(term);
 
 	return ret;
 }
@@ -114,68 +133,6 @@ VALUE ltns_dump_nil(VALUE val __attribute__ ((unused)))
 {
 	const char *nil = "0:~";
 	return rb_str_new( nil, strlen(nil));
-}
-
-VALUE ltns_dump_float(VALUE val)
-{
-	double db = RFLOAT_VALUE(val);
-
-	size_t digits = count_digits( floor(fabs(db)) );
-
-	// negative sign?
-	if( db < 0)
-		digits ++;
-
-	// place for dot and fixed precision
-	digits += 1 + FLOAT_DECIMAL_PRECISION; 
-
-	char *payload = (char*)malloc( digits + 1 );
-	snprintf( payload, digits + 1, "%.3f", db );
-
-	LTNSTerm *term = NULL;
-	LTNSError error = LTNSTermCreate(&term, payload, digits, LTNS_FLOAT);
-	if (error)
-		return Qnil;
-	char* tnetstring = NULL;
-	size_t length;
-	error = LTNSTermGetTNetstring(term, &tnetstring, &length);
-	if (error)
-		return Qnil;
-	VALUE ret = rb_str_new(tnetstring, length);
-	LTNSTermDestroy(term);
-	free(payload);
-
-	return ret;
-}
-
-VALUE ltns_dump_num(VALUE val)
-{
-	long long num = 0ll;
-	num = NUM2LL(val);
-
-	size_t digits = count_digits( llabs( num) );
-
-	// negative sign?
-	if( num < 0)
-		digits++;
-
-	char *payload = (char*)malloc( digits + 1 );
-	snprintf( payload, digits + 1, "%lld", num );
-
-	LTNSTerm *term = NULL;
-	LTNSError error = LTNSTermCreate(&term, payload, digits, LTNS_INTEGER);
-	if (error)
-		return Qnil;
-	char* tnetstring = NULL;
-	size_t length;
-	error = LTNSTermGetTNetstring(term, &tnetstring, &length);
-	if (error)
-		return Qnil;
-	VALUE ret = rb_str_new(tnetstring, length);
-	LTNSTermDestroy(term);
-	free(payload);
-
-	return ret;
 }
 
 VALUE ltns_dump_array(VALUE val)
