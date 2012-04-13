@@ -19,5 +19,6 @@ VALUE ltns_da_each(VALUE self);
 VALUE ltns_da_to_hash(VALUE self);
 VALUE ltns_da_as_json(int argc, VALUE* argv, VALUE self);
 VALUE ltns_da_eql(VALUE self, VALUE other);
+VALUE ltns_da_inspect(VALUE self);
 
 #endif

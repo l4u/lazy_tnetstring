@@ -385,6 +385,12 @@ VALUE ltns_da_eql(VALUE self, VALUE other)
 	return rb_funcall(self_hash, rb_intern("=="), 1, other_hash);
 }
 
+VALUE ltns_da_inspect(VALUE self)
+{
+	VALUE tnetstring = ltns_da_get_tnetstring(self);
+	return rb_funcall(tnetstring, rb_intern("inspect"), 0);
+}
+
 static void ltns_da_raise_on_error(LTNSError error)
 {
 	VALUE rb_Exception;
@@ -448,6 +454,7 @@ void Init_lazy_tnetstring()
 	rb_define_method(cDataAccess, "decrement_value", ltns_da_decrement_value_ruby, 1);
 	rb_define_method(cDataAccess, "data", ltns_da_get_root_tnetstring, 0);
 	rb_define_method(cDataAccess, "scoped_data", ltns_da_get_tnetstring, 0);
+	rb_define_alias(cDataAccess, "to_s", "scoped_data");
 	rb_define_method(cDataAccess, "offset", ltns_da_get_offset, 0);
 	rb_define_method(cDataAccess, "empty?", ltns_da_is_empty, 0);
 	rb_define_method(cDataAccess, "each", ltns_da_each, 0);
@@ -457,4 +464,5 @@ void Init_lazy_tnetstring()
 	rb_define_method(cDataAccess, "initialize_copy", ltns_da_initialize_copy, 1);
 	rb_define_method(cDataAccess, "eql?", ltns_da_eql, 1);
 	rb_define_alias(cDataAccess, "==", "eql?");
+	rb_define_method(cDataAccess, "inspect", ltns_da_inspect, 0);
 }
