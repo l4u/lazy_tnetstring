@@ -826,5 +826,42 @@ module LazyTNetstring
       end
     end
 
+    describe '#keys' do
+      subject { LazyTNetstring::DataAccess.new(data).keys }
+
+      context 'for an empty data access' do
+        let(:data) { LazyTNetstring.dump({}) }
+
+        it { should be_a(Array) }
+        it { should be_empty }
+      end
+
+      context 'for non empty data access' do
+        let(:keys) { ['one', 'two', 'three'] }
+        let(:data) { LazyTNetstring.dump(Hash[keys.zip(keys)]) }
+
+        it { should == keys }
+      end
+    end
+
+    describe '#values' do
+      subject { LazyTNetstring::DataAccess.new(data).values }
+
+      context 'for an empty data access' do
+        let(:data) { LazyTNetstring.dump({}) }
+
+        it { should be_a(Array) }
+        it { should be_empty }
+      end
+
+      context 'for non empty data access' do
+        let(:hash) { {'one' => 1, :two => 2.3, :three => [], :four => LazyTNetstring::DataAccess.new} }
+        let(:values) { hash.values }
+        let(:data) { LazyTNetstring.dump(hash) }
+
+        it { should == values }
+      end
+    end
+
   end
 end

@@ -337,6 +337,34 @@ VALUE ltns_da_to_hash(VALUE self)
 	return hash;
 }
 
+static VALUE ltns_da_keys_helper(VALUE pair, VALUE ary)
+{
+	VALUE key = rb_ary_entry(pair, 0);
+	rb_ary_push(ary, key);
+	return Qnil;
+}
+
+VALUE ltns_da_keys(VALUE self)
+{
+	VALUE keys = rb_ary_new();
+	rb_block_call(self, rb_intern("each"), 0, NULL, ltns_da_keys_helper, keys);
+	return keys;
+}
+
+static VALUE ltns_da_values_helper(VALUE pair, VALUE ary)
+{
+	VALUE value = rb_ary_entry(pair, 1);
+	rb_ary_push(ary, value);
+	return Qnil;
+}
+
+VALUE ltns_da_values(VALUE self)
+{
+	VALUE values = rb_ary_new();
+	rb_block_call(self, rb_intern("each"), 0, NULL, ltns_da_values_helper, values);
+	return values;
+}
+
 VALUE ltns_da_as_json(int argc, VALUE* argv, VALUE self)
 {
 	/* FIXME: Support options argument */
@@ -465,4 +493,6 @@ void Init_lazy_tnetstring()
 	rb_define_method(cDataAccess, "eql?", ltns_da_eql, 1);
 	rb_define_alias(cDataAccess, "==", "eql?");
 	rb_define_method(cDataAccess, "inspect", ltns_da_inspect, 0);
+	rb_define_method(cDataAccess, "keys", ltns_da_keys, 0);
+	rb_define_method(cDataAccess, "values", ltns_da_values, 0);
 }

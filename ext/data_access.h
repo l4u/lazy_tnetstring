@@ -17,6 +17,8 @@ VALUE ltns_da_get_offset(VALUE self);
 VALUE ltns_da_is_empty(VALUE self);
 VALUE ltns_da_each(VALUE self);
 VALUE ltns_da_to_hash(VALUE self);
+VALUE ltns_da_keys(VALUE self);
+VALUE ltns_da_values(VALUE self);
 VALUE ltns_da_as_json(int argc, VALUE* argv, VALUE self);
 VALUE ltns_da_eql(VALUE self, VALUE other);
 VALUE ltns_da_inspect(VALUE self);
